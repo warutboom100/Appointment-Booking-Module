@@ -3,14 +3,26 @@ import { z } from 'zod';
 export const genderSchema = z.enum(['male', 'female', 'other']);
 
 export const createPatientSchema = z.object({
-  first_name: z.string().trim().min(1, 'กรุณาระบุชื่อ').max(100, 'ชื่อต้องไม่เกิน 100 ตัวอักษร'),
-  last_name: z.string().trim().min(1, 'กรุณาระบุนามสกุล').max(100, 'นามสกุลต้องไม่เกิน 100 ตัวอักษร'),
+  first_name: z
+    .string({ required_error: 'กรุณาระบุชื่อ' })
+    .trim()
+    .min(1, 'กรุณาระบุชื่อ')
+    .max(100, 'ชื่อต้องไม่เกิน 100 ตัวอักษร'),
+  last_name: z
+    .string({ required_error: 'กรุณาระบุนามสกุล' })
+    .trim()
+    .min(1, 'กรุณาระบุนามสกุล')
+    .max(100, 'นามสกุลต้องไม่เกิน 100 ตัวอักษร'),
   date_of_birth: z
-    .string()
+    .string({ required_error: 'กรุณาระบุวันเกิด' })
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'รูปแบบวันเกิดต้องเป็น YYYY-MM-DD')
     .refine((val) => !isNaN(Date.parse(val)), 'วันเกิดไม่ถูกต้อง'),
   gender: genderSchema,
-  phone: z.string().trim().min(1, 'กรุณาระบุเบอร์โทรศัพท์').max(20, 'เบอร์โทรศัพท์ต้องไม่เกิน 20 ตัวอักษร'),
+  phone: z
+    .string({ required_error: 'กรุณาระบุเบอร์โทรศัพท์' })
+    .trim()
+    .min(1, 'กรุณาระบุเบอร์โทรศัพท์')
+    .max(20, 'เบอร์โทรศัพท์ต้องไม่เกิน 20 ตัวอักษร'),
   email: z
     .string()
     .trim()

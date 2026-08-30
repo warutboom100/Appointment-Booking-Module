@@ -4,10 +4,15 @@ import { useAuthStore } from '@/stores/auth.store';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { useDashboardSummary } from '@/hooks/useDashboard';
+import { formatTime, getAppointmentStatusMeta } from '@/lib/format';
 import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const { data: summary, isLoading } = useDashboardSummary();
+
+  const todayQueue = summary?.today_queue || [];
 
   return (
     <div className="flex flex-col gap-6 stagger">
@@ -54,63 +59,149 @@ export default function DashboardPage() {
 
       {/* Quick Stat Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Appointments Today */}
         <Card variant="glass">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[var(--muted)]">นัดหมายวันนี้</span>
             <Badge variant="teal" size="sm">Today</Badge>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-[var(--fg)] tnum">18</span>
+            <span className="text-3xl font-bold tracking-tight text-[var(--fg)] tnum">
+              {isLoading ? '...' : summary?.total_appointments ?? 0}
+            </span>
             <span className="text-xs text-[var(--muted)]">คิว</span>
           </div>
-          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1 font-medium">
-            <span>↑ 4 รายการ</span>
-            <span className="text-[var(--muted)] font-normal">จากช่วงเช้า</span>
+          <p className="text-[11px] text-[var(--muted)] mt-2">
+            {summary?.status_breakdown
+              ? `รอยืนยัน/จองแล้ว ${summary.status_breakdown.booked + summary.status_breakdown.confirmed} คิว`
+              : 'กำลังโหลดข้อมูล...'}
           </p>
         </Card>
 
+        {/* Patients Arrived / Waiting */}
         <Card variant="glass">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[var(--muted)]">ผู้ป่วยมาถึงแล้ว</span>
             <Badge variant="amber" size="sm">Checked-in</Badge>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-[var(--fg)] tnum">6</span>
+            <span className="text-3xl font-bold tracking-tight text-[var(--fg)] tnum">
+              {isLoading ? '...' : summary?.status_breakdown?.checked_in ?? 0}
+            </span>
             <span className="text-xs text-[var(--muted)]">คนรอตรวจ</span>
           </div>
-          <p className="text-[11px] text-[var(--muted)] mt-2">
-            เฉลี่ยเวลารอ 12 นาที
+          <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-2 font-medium">
+            {summary?.status_breakdown?.in_progress
+              ? `กำลังตรวจอยู่ ${summary.status_breakdown.in_progress} คน`
+              : 'พร้อมเข้าห้องตรวจ'}
           </p>
         </Card>
 
+        {/* Completed Visits */}
         <Card variant="glass">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-[var(--muted)]">ตรวจเสร็จสิ้น</span>
             <Badge variant="emerald" size="sm">Completed</Badge>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-[var(--fg)] tnum">9</span>
+            <span className="text-3xl font-bold tracking-tight text-[var(--fg)] tnum">
+              {isLoading ? '...' : summary?.status_breakdown?.completed ?? 0}
+            </span>
             <span className="text-xs text-[var(--muted)]">เสร็จแล้ว</span>
           </div>
-          <p className="text-[11px] text-[var(--muted)] mt-2">
-            50% ของคิววันนี้
+          <p className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-2 font-medium">
+            {summary?.total_appointments && summary.total_appointments > 0
+              ? `${Math.round(((summary.status_breakdown?.completed || 0) / summary.total_appointments) * 100)}% ของคิวทั้งหมด`
+              : '0% สำเร็จ'}
           </p>
         </Card>
 
+        {/* Doctors On Duty */}
         <Card variant="glass">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-[var(--muted)]">แพทย์ออกตรวจ</span>
+            <span className="text-xs font-medium text-[var(--muted)]">แพทย์ออกตรวจวันนี้</span>
             <Badge variant="indigo" size="sm">Doctors</Badge>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold tracking-tight text-[var(--fg)] tnum">5</span>
+            <span className="text-3xl font-bold tracking-tight text-[var(--fg)] tnum">
+              {isLoading ? '...' : summary?.doctors_on_duty_count ?? 0}
+            </span>
             <span className="text-xs text-[var(--muted)]">ท่าน</span>
           </div>
           <p className="text-[11px] text-[var(--muted)] mt-2">
-            ครอบคลุม 4 แผนก
+            ตามตารางเวรและข้อยกเว้นวันนี้
           </p>
         </Card>
       </div>
+
+      {/* Today's Live Queue Table */}
+      <Card variant="default">
+        <CardHeader
+          title="คิวตรวจวันนี้ (Today's Live Queue)"
+          subtitle={summary?.date ? `รายการนัดหมายประจำวันที่ ${summary.date}` : 'รายการนัดหมายทั้งหมดในวันนี้'}
+          action={
+            <Link href="/appointments">
+              <Button variant="secondary" size="sm">
+                จัดการนัดหมายทั้งหมด ➔
+              </Button>
+            </Link>
+          }
+        />
+
+        {isLoading ? (
+          <div className="py-12 flex flex-col items-center justify-center text-[var(--muted)] text-sm">
+            <div className="w-6 h-6 border-2 border-teal-600 border-t-transparent rounded-full animate-spin mb-2" />
+            กำลังโหลดคิวตรวจวันนี้...
+          </div>
+        ) : todayQueue.length === 0 ? (
+          <div className="py-12 flex flex-col items-center justify-center text-[var(--muted)] text-sm">
+            <span className="text-3xl mb-2">🏖️</span>
+            <span>ไม่มีรายการนัดหมายในวันนี้</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[var(--surface-subtle)] text-[var(--muted)] text-xs uppercase border-y border-[var(--border-subtle)]">
+                <tr>
+                  <th className="py-3 px-4">เวลาตรวจ</th>
+                  <th className="py-3 px-4">ผู้ป่วย</th>
+                  <th className="py-3 px-4">แพทย์ผู้ตรวจ</th>
+                  <th className="py-3 px-4">แผนก / ประเภทตรวจ</th>
+                  <th className="py-3 px-4 text-center">สถานะ</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-subtle)]">
+                {todayQueue.slice(0, 10).map((item) => {
+                  const statusMeta = getAppointmentStatusMeta(item.status);
+                  return (
+                    <tr key={item.id} className="hover:bg-[var(--surface-subtle)]/50 transition-colors">
+                      <td className="py-3 px-4 font-semibold text-[var(--fg)] font-mono text-xs">
+                        {formatTime(item.start_time)} - {formatTime(item.end_time)} น.
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-semibold text-xs text-[var(--fg)]">{item.patient_name}</div>
+                        <div className="text-[11px] text-[var(--muted)] font-mono">HN: {item.patient_hn}</div>
+                      </td>
+                      <td className="py-3 px-4 text-xs font-semibold text-[var(--fg)]">
+                        {item.doctor_name}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-[var(--fg)] font-semibold text-xs">{item.department_name}</div>
+                        <div className="text-[11px] text-[var(--muted)]">{item.appointment_type_name}</div>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <Badge variant={statusMeta.variant} size="sm" dot>
+                          {statusMeta.label}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       {/* Quick Navigation Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

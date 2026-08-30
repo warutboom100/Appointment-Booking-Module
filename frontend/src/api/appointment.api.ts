@@ -6,7 +6,6 @@ import type {
   CreateAppointmentInput,
   PaginatedResponse,
   ApiResponse,
-  DashboardSummary,
 } from '@/types';
 
 // === Appointment Types ===
@@ -92,11 +91,5 @@ export async function rescheduleAppointmentApi(
     `/appointments/${id}/reschedule`,
     input,
   );
-  return data.data;
-}
-
-// === Dashboard ===
-export async function getDashboardSummaryApi(): Promise<DashboardSummary> {
-  const { data } = await api.get<ApiResponse<DashboardSummary>>('/dashboard/summary');
   return data.data;
 }

@@ -20,6 +20,51 @@ export interface ScheduleOverride {
   reason: string | null;
   created_at: Date;
   updated_at: Date;
+
+  // Joined doctor & department fields
+  doctor_first_name?: string;
+  doctor_last_name?: string;
+  department_id?: string;
+  department_name?: string;
+}
+
+export async function findAll(query: OverrideQuery): Promise<ScheduleOverride[]> {
+  const baseQuery = db('schedule_overrides as so')
+    .leftJoin('doctors as d', 'so.doctor_id', 'd.id')
+    .leftJoin('departments as dep', 'd.department_id', 'dep.id');
+
+  if (query.doctor_id) {
+    baseQuery.where('so.doctor_id', query.doctor_id);
+  }
+
+  if (query.department_id) {
+    baseQuery.where('d.department_id', query.department_id);
+  }
+
+  if (query.from_date) {
+    baseQuery.where('so.override_date', '>=', query.from_date);
+  }
+
+  if (query.to_date) {
+    baseQuery.where('so.override_date', '<=', query.to_date);
+  }
+
+  if (typeof query.is_available === 'boolean') {
+    baseQuery.where('so.is_available', query.is_available);
+  }
+
+  const rows = await baseQuery
+    .select(
+      'so.*',
+      'd.first_name as doctor_first_name',
+      'd.last_name as doctor_last_name',
+      'd.department_id as department_id',
+      'dep.name as department_name',
+    )
+    .orderBy('so.override_date', 'desc')
+    .orderBy('so.start_time', 'asc');
+
+  return rows;
 }
 
 export async function findByDoctor(

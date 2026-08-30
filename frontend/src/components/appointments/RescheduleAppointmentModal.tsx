@@ -5,18 +5,49 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
-import { Badge } from '@/components/ui/Badge';
 import { useAvailableSlots, useRescheduleAppointment } from '@/hooks/useAppointments';
+import { useDoctorSchedules, useDoctorOverrides } from '@/hooks/useSchedules';
 import { useToast } from '@/providers/ToastProvider';
 import { getErrorMessage } from '@/api/client';
 import { formatDate, formatTime } from '@/lib/format';
-import type { Appointment, TimeSlot } from '@/types';
+import type { Appointment, TimeSlot, DoctorSchedule, ScheduleOverride } from '@/types';
 
 interface RescheduleAppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointment: Appointment | null;
   onSuccess?: () => void;
+}
+
+const THAI_DAYS_SHORT = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
+const THAI_DAYS_FULL = [
+  'วันอาทิตย์',
+  'วันจันทร์',
+  'วันอังคาร',
+  'วันพุธ',
+  'วันพฤหัสบดี',
+  'วันศุกร์',
+  'วันเสาร์',
+];
+
+interface AvailableDateOption {
+  dateStr: string;
+  dayOfWeek: number;
+  dayNameShort: string;
+  dayNameFull: string;
+  dayNumber: number;
+  monthShort: string;
+  isToday: boolean;
+  isTomorrow: boolean;
+  isOverrideSpecial: boolean;
+  workingHours: string;
+}
+
+function formatYmd(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export function RescheduleAppointmentModal({
@@ -28,21 +59,93 @@ export function RescheduleAppointmentModal({
   const { addToast } = useToast();
   const rescheduleMutation = useRescheduleAppointment();
 
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const todayStr = useMemo(() => formatYmd(new Date()), []);
 
   const [newDate, setNewDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [notes, setNotes] = useState<string>('');
 
+  // 1. Fetch Doctor's Recurring Schedules and Overrides
+  const doctorId = appointment?.doctor_id || '';
+  const { data: schedules = [], isLoading: isSchedulesLoading } = useDoctorSchedules(doctorId);
+  const { data: overrides = [], isLoading: isOverridesLoading } = useDoctorOverrides(doctorId);
+
+  // 2. Compute Next 21 Days where Doctor is Available
+  const availableDateOptions = useMemo(() => {
+    if (!doctorId) return [];
+    const options: AvailableDateOption[] = [];
+    const today = new Date();
+
+    for (let i = 0; i < 28; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const dateStr = formatYmd(d);
+      const dayOfWeek = d.getDay();
+
+      const override = overrides.find(
+        (o: ScheduleOverride) => o.override_date.slice(0, 10) === dateStr,
+      );
+      const recurring = schedules.find(
+        (s: DoctorSchedule) => s.day_of_week === dayOfWeek && s.is_available,
+      );
+
+      let isAvailable = false;
+      let isOverrideSpecial = false;
+      let workingHours = '';
+
+      if (override) {
+        if (override.is_available) {
+          isAvailable = true;
+          isOverrideSpecial = true;
+          workingHours = `${override.start_time?.slice(0, 5) || ''} - ${override.end_time?.slice(0, 5) || ''} น.`;
+        } else {
+          isAvailable = false;
+        }
+      } else if (recurring) {
+        isAvailable = true;
+        workingHours = `${recurring.start_time.slice(0, 5)} - ${recurring.end_time.slice(0, 5)} น.`;
+      }
+
+      if (isAvailable) {
+        const monthShort = d.toLocaleDateString('th-TH', { month: 'short' });
+        options.push({
+          dateStr,
+          dayOfWeek,
+          dayNameShort: THAI_DAYS_SHORT[dayOfWeek],
+          dayNameFull: THAI_DAYS_FULL[dayOfWeek],
+          dayNumber: d.getDate(),
+          monthShort,
+          isToday: i === 0,
+          isTomorrow: i === 1,
+          isOverrideSpecial,
+          workingHours,
+        });
+      }
+    }
+
+    return options;
+  }, [doctorId, schedules, overrides]);
+
+  // Reset or initialize state on modal open
   useEffect(() => {
     if (isOpen && appointment) {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      setNewDate(tomorrow.toISOString().split('T')[0]);
+      setNewDate(formatYmd(tomorrow));
       setSelectedSlot(null);
       setNotes('');
     }
   }, [isOpen, appointment]);
+
+  // Auto-select nearest available date when available dates load
+  useEffect(() => {
+    if (isOpen && !isSchedulesLoading && !isOverridesLoading && availableDateOptions.length > 0) {
+      const isCurrentDateAvailable = availableDateOptions.some((opt) => opt.dateStr === newDate);
+      if (!isCurrentDateAvailable) {
+        setNewDate(availableDateOptions[0].dateStr);
+      }
+    }
+  }, [isOpen, isSchedulesLoading, isOverridesLoading, availableDateOptions, newDate]);
 
   const { data: slotData, isLoading: isSlotsLoading } = useAvailableSlots({
     doctor_id: appointment?.doctor_id || '',
@@ -124,10 +227,10 @@ export function RescheduleAppointmentModal({
           </span>
           <div className="text-xs text-[var(--fg)] flex flex-col gap-1">
             <p>
-              👤 <strong>คนไข้:</strong> {appointment.patient?.first_name} {appointment.patient?.last_name} ({appointment.patient?.hn})
+              👤 <strong>คนไข้:</strong> {appointment.patient_name || `${appointment.patient?.first_name || ''} ${appointment.patient?.last_name || ''}`.trim() || 'ผู้ป่วย'} ({appointment.patient_hn || appointment.patient?.hn || '-'})
             </p>
             <p>
-              🩺 <strong>แพทย์:</strong> {appointment.doctor?.title || ''} {appointment.doctor?.first_name} {appointment.doctor?.last_name}
+              🩺 <strong>แพทย์:</strong> {appointment.doctor_name || `${appointment.doctor?.title || ''} ${appointment.doctor?.first_name || ''} ${appointment.doctor?.last_name || ''}`.trim() || 'แพทย์ประจำแผนก'}
             </p>
             <p className="text-rose-600 dark:text-rose-400 font-medium">
               📅 วันเดิม: {formatDate(appointment.appointment_date)} เวลา {formatTime(appointment.start_time)} - {formatTime(appointment.end_time)} น.
@@ -135,10 +238,57 @@ export function RescheduleAppointmentModal({
           </div>
         </div>
 
-        {/* New Date Picker */}
+        {/* Available Dates Quick Selector */}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider flex items-center gap-1.5">
+              <span>✨</span>
+              <span>เลือกจากวันที่แพทย์ลงตรวจจริง</span>
+            </label>
+            <span className="text-[11px] text-[var(--muted)]">คลิกเลือกวันได้ทันที</span>
+          </div>
+
+          {isSchedulesLoading || isOverridesLoading ? (
+            <div className="py-4 flex items-center justify-center gap-2 text-xs text-[var(--muted)]">
+              <div className="w-4 h-4 rounded-full border-2 border-teal-600 border-t-transparent animate-spin" />
+              <span>กำลังตรวจสอบตารางตรวจแพทย์...</span>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 max-h-[140px] overflow-y-auto pr-1">
+              {availableDateOptions.slice(0, 12).map((opt) => {
+                const isSelected = newDate === opt.dateStr;
+
+                return (
+                  <button
+                    type="button"
+                    key={opt.dateStr}
+                    onClick={() => {
+                      setNewDate(opt.dateStr);
+                      setSelectedSlot(null);
+                    }}
+                    className={`p-2 rounded-xl border text-center flex flex-col items-center justify-center transition-all cursor-pointer select-none active:scale-[0.96] ${
+                      isSelected
+                        ? 'bg-teal-600 text-white border-teal-600 shadow-xs ring-2 ring-teal-500/30'
+                        : 'bg-[var(--surface)] text-[var(--fg)] border-[var(--border)] hover:bg-[var(--surface-subtle)]'
+                    }`}
+                  >
+                    <span className={`text-[10px] ${isSelected ? 'text-teal-100' : 'text-[var(--muted)]'}`}>
+                      {opt.dayNameShort}
+                    </span>
+                    <span className="text-xs font-bold font-mono">
+                      {opt.dayNumber} {opt.monthShort}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Manual Date Input */}
         <div className="flex flex-col gap-2">
           <label className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">
-            เลือกวันนัดหมายใหม่ *
+            หรือระบุวันที่เจาะจง *
           </label>
           <Input
             type="date"
@@ -190,7 +340,7 @@ export function RescheduleAppointmentModal({
                           onClick={() => setSelectedSlot(slot)}
                           className={`py-2 px-2.5 rounded-xl border text-xs font-semibold font-mono transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-xs ring-2 ring-teal-500/30'
                               : 'bg-[var(--surface)] text-[var(--fg)] border-[var(--border)] hover:bg-[var(--surface-subtle)]'
                           }`}
                         >
@@ -217,7 +367,7 @@ export function RescheduleAppointmentModal({
                           onClick={() => setSelectedSlot(slot)}
                           className={`py-2 px-2.5 rounded-xl border text-xs font-semibold font-mono transition-all cursor-pointer ${
                             isSelected
-                              ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                              ? 'bg-teal-600 text-white border-teal-600 shadow-xs ring-2 ring-teal-500/30'
                               : 'bg-[var(--surface)] text-[var(--fg)] border-[var(--border)] hover:bg-[var(--surface-subtle)]'
                           }`}
                         >

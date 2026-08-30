@@ -59,6 +59,7 @@ export function PatientQuickAddModal({
     if (!firstName.trim()) e.firstName = 'กรุณาระบุชื่อจริง';
     if (!lastName.trim()) e.lastName = 'กรุณาระบุนามสกุล';
     if (!dob) e.dob = 'กรุณาระบุวันเดือนปีเกิด';
+    if (!phone.trim()) e.phone = 'กรุณาระบุเบอร์โทรศัพท์';
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       e.email = 'รูปแบบอีเมลไม่ถูกต้อง';
     }
@@ -75,9 +76,9 @@ export function PatientQuickAddModal({
       last_name: lastName.trim(),
       date_of_birth: dob,
       gender,
-      phone: phone.trim() || undefined,
+      phone: phone.trim(),
       email: email.trim() || undefined,
-      id_card_number: idCardNumber.trim() || undefined,
+      id_card_no: idCardNumber.trim() || undefined,
       address: address.trim() || undefined,
       allergies: allergies.trim() || undefined,
     };
@@ -181,12 +182,15 @@ export function PatientQuickAddModal({
         {/* Contact info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="เบอร์โทรศัพท์ (Phone)"
+            label="เบอร์โทรศัพท์ (Phone) *"
             placeholder="เช่น 0812345678"
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            optional
+            onChange={(e) => {
+              setPhone(e.target.value);
+              if (errors.phone) setErrors((p) => ({ ...p, phone: '' }));
+            }}
+            error={errors.phone}
           />
           <Input
             label="อีเมล (Email)"

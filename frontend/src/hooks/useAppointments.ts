@@ -8,7 +8,6 @@ import {
   cancelAppointmentApi,
   rescheduleAppointmentApi,
   getAppointmentTypesApi,
-  getDashboardSummaryApi,
   type GetAppointmentsParams,
 } from '@/api/appointment.api';
 import type { CreateAppointmentInput } from '@/types';
@@ -119,14 +118,5 @@ export function useRescheduleAppointment() {
       queryClient.invalidateQueries({ queryKey: [AVAILABLE_SLOTS_KEY] });
       queryClient.invalidateQueries({ queryKey: [DASHBOARD_SUMMARY_KEY] });
     },
-  });
-}
-
-// === Dashboard Summary ===
-export function useDashboardSummary() {
-  return useQuery({
-    queryKey: [DASHBOARD_SUMMARY_KEY],
-    queryFn: getDashboardSummaryApi,
-    refetchInterval: 30 * 1000, // auto refresh every 30s
   });
 }

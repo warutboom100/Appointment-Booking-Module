@@ -31,11 +31,10 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           ref={ref}
           id={textareaId}
           rows={rows}
-          className={`w-full px-3.5 py-2 text-sm bg-[var(--surface)] text-[var(--fg)] border rounded-xl placeholder:text-[var(--muted)] placeholder:opacity-60 transition-all duration-150 ease-out outline-none resize-y ${
-            error
-              ? 'border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-red-500/20'
-              : 'border-[var(--border)] focus:border-[var(--accent)] focus:ring-3 focus:ring-[var(--ring)]'
-          } ${className}`}
+          className={`w-full px-3.5 py-2 text-sm bg-[var(--surface)] text-[var(--fg)] border rounded-xl placeholder:text-[var(--muted)] placeholder:opacity-60 transition-all duration-150 ease-out outline-none resize-y ${error
+            ? 'border-[var(--danger)] focus:border-[var(--danger)] focus:ring-2 focus:ring-red-500/20'
+            : 'border-[var(--border)] focus:border-[var(--accent)] focus:ring-3 focus:ring-[var(--ring)]'
+            } ${className}`}
           {...props}
         />
 

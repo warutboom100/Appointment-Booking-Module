@@ -105,8 +105,9 @@ export interface CreatePatientInput {
   last_name: string;
   date_of_birth: string;
   gender: Gender;
-  phone?: string;
+  phone: string;
   email?: string;
+  id_card_no?: string;
   id_card_number?: string;
   address?: string;
   allergies?: string;
@@ -192,7 +193,17 @@ export interface Appointment {
   created_at: string;
   updated_at: string;
 
-  // Joined relations
+  // Joined flat fields
+  patient_hn?: string;
+  patient_name?: string;
+  patient_phone?: string | null;
+  doctor_name?: string;
+  department_name?: string;
+  appointment_type_name?: string;
+  appointment_type_color?: string | null;
+  appointment_type_duration?: number;
+
+  // Joined relations (optional nested objects)
   patient?: Patient;
   doctor?: Doctor;
   department?: Department;
@@ -226,10 +237,33 @@ export interface AvailableSlotsData {
 }
 
 // === Dashboard Summary ===
-export interface DashboardSummary {
-  today_date: string;
-  total_appointments_today: number;
-  status_breakdown: Record<AppointmentStatus, number>;
-  active_doctors_today: number;
-  checked_in_queue_count: number;
+export interface DashboardSummaryData {
+  date: string;
+  total_appointments: number;
+  status_breakdown: {
+    booked: number;
+    confirmed: number;
+    checked_in: number;
+    in_progress: number;
+    completed: number;
+    cancelled: number;
+    no_show: number;
+    rescheduled: number;
+  };
+  doctors_on_duty_count: number;
+  today_queue: Array<{
+    id: string;
+    patient_hn: string;
+    patient_name: string;
+    patient_phone: string | null;
+    doctor_name: string;
+    department_name: string;
+    appointment_type_name: string;
+    appointment_type_color: string | null;
+    start_time: string;
+    end_time: string;
+    status: AppointmentStatus;
+  }>;
 }
+
+export type DashboardSummary = DashboardSummaryData;

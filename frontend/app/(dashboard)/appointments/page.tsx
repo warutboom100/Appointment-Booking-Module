@@ -298,7 +298,7 @@ export default function AppointmentsPage() {
                       <td className="py-3.5 px-4 align-top">
                         <div className="flex items-center gap-2.5">
                           <div className="w-8 h-8 rounded-xl bg-teal-600/10 text-teal-700 dark:text-teal-300 font-bold text-xs flex items-center justify-center shrink-0">
-                            {item.patient?.first_name.slice(0, 1) || 'P'}
+                            {(item.patient_name || item.patient?.first_name || 'P').slice(0, 1)}
                           </div>
                           <div className="flex flex-col">
                             <Link
@@ -306,11 +306,11 @@ export default function AppointmentsPage() {
                               className="font-semibold text-xs text-[var(--fg)] hover:text-[var(--accent)] hover:underline flex items-center gap-1.5"
                             >
                               <span>
-                                {item.patient?.first_name} {item.patient?.last_name}
+                                {item.patient_name || `${item.patient?.first_name || ''} ${item.patient?.last_name || ''}`.trim() || 'ผู้ป่วย'}
                               </span>
                             </Link>
                             <span className="text-[11px] text-[var(--muted)] font-mono">
-                              HN: {item.patient?.hn || '-'}
+                              HN: {item.patient_hn || item.patient?.hn || '-'}
                             </span>
                           </div>
                         </div>
@@ -320,11 +320,10 @@ export default function AppointmentsPage() {
                       <td className="py-3.5 px-4 align-top">
                         <div className="flex flex-col">
                           <span className="font-semibold text-xs text-[var(--fg)]">
-                            {item.doctor?.title || ''} {item.doctor?.first_name} {item.doctor?.last_name}
+                            {item.doctor_name || `${item.doctor?.title || ''} ${item.doctor?.first_name || ''} ${item.doctor?.last_name || ''}`.trim() || 'แพทย์ประจำแผนก'}
                           </span>
                           <span className="text-[11px] text-[var(--muted)]">
-                            {item.department?.name || item.doctor?.department_name || 'แผนกผู้ป่วยนอก'}{' '}
-                            {item.doctor?.room_number ? `• ห้อง ${item.doctor.room_number}` : ''}
+                            {item.department_name || item.department?.name || item.doctor?.department_name || 'แผนกผู้ป่วยนอก'}
                           </span>
                         </div>
                       </td>
@@ -334,11 +333,11 @@ export default function AppointmentsPage() {
                         <div className="flex flex-col gap-1 max-w-[200px]">
                           <div className="flex items-center gap-1.5">
                             <Badge variant="blue" size="sm">
-                              {item.appointment_type?.name || 'ตรวจทั่วไป'}
+                              {item.appointment_type_name || item.appointment_type?.name || 'ตรวจทั่วไป'}
                             </Badge>
-                            {item.appointment_type?.duration_minutes && (
+                            {(item.appointment_type_duration || item.appointment_type?.duration_minutes) && (
                               <span className="text-[10px] text-[var(--muted)] font-mono">
-                                {item.appointment_type.duration_minutes}m
+                                {item.appointment_type_duration || item.appointment_type?.duration_minutes}m
                               </span>
                             )}
                           </div>

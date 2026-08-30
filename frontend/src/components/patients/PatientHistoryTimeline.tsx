@@ -66,24 +66,26 @@ export function PatientHistoryTimeline({
                 <div className="flex items-center gap-2 text-[var(--muted)]">
                   <span>🩺 แพทย์:</span>
                   <span className="font-medium text-[var(--fg)]">
-                    {apt.doctor
-                      ? `${apt.doctor.title || ''} ${apt.doctor.first_name} ${apt.doctor.last_name}`
-                      : 'แพทย์ประจำแผนก'}
+                    {apt.doctor_name || (apt.doctor
+                      ? `${apt.doctor.title || ''} ${apt.doctor.first_name} ${apt.doctor.last_name}`.trim()
+                      : 'แพทย์ประจำแผนก')}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 text-[var(--muted)]">
                   <span>🏥 แผนก:</span>
                   <span className="font-medium text-[var(--fg)]">
-                    {apt.department?.name || 'แผนกผู้ป่วยนอก'}
+                    {apt.department_name || apt.department?.name || 'แผนกผู้ป่วยนอก'}
                   </span>
                 </div>
               </div>
 
               {/* Type & Reason */}
-              {apt.appointment_type && (
+              {(apt.appointment_type_name || apt.appointment_type) && (
                 <div className="text-xs text-[var(--muted)] mb-1">
-                  ประเภท: <span className="text-[var(--fg)] font-medium">{apt.appointment_type.name}</span>
-                  <span className="ml-2 font-mono">({apt.appointment_type.duration_minutes} นาที)</span>
+                  ประเภท: <span className="text-[var(--fg)] font-medium">{apt.appointment_type_name || apt.appointment_type?.name}</span>
+                  {(apt.appointment_type_duration || apt.appointment_type?.duration_minutes) && (
+                    <span className="ml-2 font-mono">({apt.appointment_type_duration || apt.appointment_type?.duration_minutes} นาที)</span>
+                  )}
                 </div>
               )}
 

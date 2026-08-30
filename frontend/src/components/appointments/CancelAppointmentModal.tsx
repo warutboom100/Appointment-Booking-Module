@@ -94,10 +94,10 @@ export function CancelAppointmentModal({
 
           <div className="text-xs text-[var(--fg)] flex flex-col gap-1 mt-1">
             <p>
-              👤 <strong>คนไข้:</strong> {appointment.patient?.first_name} {appointment.patient?.last_name} ({appointment.patient?.hn})
+              👤 <strong>คนไข้:</strong> {appointment.patient_name || `${appointment.patient?.first_name || ''} ${appointment.patient?.last_name || ''}`.trim() || 'ผู้ป่วย'} ({appointment.patient_hn || appointment.patient?.hn || '-'})
             </p>
             <p>
-              🩺 <strong>แพทย์:</strong> {appointment.doctor?.title || ''} {appointment.doctor?.first_name} {appointment.doctor?.last_name}
+              🩺 <strong>แพทย์:</strong> {appointment.doctor_name || `${appointment.doctor?.title || ''} ${appointment.doctor?.first_name || ''} ${appointment.doctor?.last_name || ''}`.trim() || 'แพทย์ประจำแผนก'}
             </p>
             <p>
               📅 <strong>วัน-เวลา:</strong> {formatDate(appointment.appointment_date)} เวลา {formatTime(appointment.start_time)} - {formatTime(appointment.end_time)} น.
