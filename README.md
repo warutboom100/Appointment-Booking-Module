@@ -9,10 +9,10 @@
 - [ภาพรวมโปรเจกต์](#-ภาพรวมโปรเจกต์)
 - [ฟีเจอร์หลัก](#-ฟีเจอร์หลัก)
 - [Business Logic & การออกแบบระบบ](#-business-logic--การออกแบบระบบ)
-  - [1. อัลกอริทึมคำนวณช่วงเวลาว่าง (Slot Availability)](#1-อัลกอริทึมคำนวณช่วงเวลาว่าง-slot-availability)
+  - [1. ประเภทการนัดหมายและข้อสมมติฐานเรื่องระยะเวลา (Appointment Types & Duration)](#1-ประเภทการนัดหมายและข้อสมมติฐานเรื่องระยะเวลา-appointment-types--duration)
   - [2. ขั้นตอนการตรวจสอบการจอง (11-Step Validation)](#2-ขั้นตอนการตรวจสอบการจอง-11-step-validation)
   - [3. การป้องกัน Race Condition (Concurrency Control)](#3-การป้องกัน-race-condition-concurrency-control)
-  - [4. วงจรสถานะการนัดหมาย (Appointment Status Lifecycle)](#4-วงจรสถานะการนัดหมาย-appointment-status-lifecycle)
+  - [4. สถานะนัดหมายและผลกระทบต่อ Slot ว่าง (Status Lifecycle & Availability Impact)](#4-สถานะนัดหมายและผลกระทบต่อ-slot-ว่าง-status-lifecycle--availability-impact)
   - [5. นโยบายยกเลิกและเลื่อนนัด (Cancel & Reschedule)](#5-นโยบายยกเลิกและเลื่อนนัด-cancel--reschedule)
 - [Tech Stack](#-tech-stack)
 - [โครงสร้างโปรเจกต์](#-โครงสร้างโปรเจกต์)
@@ -20,9 +20,10 @@
 - [การติดตั้งแบบ Local Development](#-การติดตั้งแบบ-local-development)
 - [บัญชีผู้ใช้ทดสอบ (Demo Accounts)](#-บัญชีผู้ใช้ทดสอบ-demo-accounts)
 - [REST API Endpoints & สิทธิ์การใช้งาน](#-rest-api-endpoints--สิทธิ์การใช้งาน)
-- [Database Schema & ERD](#-database-schema--erd)
+- [Database Schema & Storage Architecture](#-database-schema--storage-architecture)
+  - [Entity Relationship Diagram (ERD)](#entity-relationship-diagram-erd)
+  - [เหตุผลในการเลือกใช้ Relational Database (PostgreSQL) และ Knex.js](#เหตุผลในการเลือกใช้-relational-database-postgresql-และ-knexjs)
 - [การทดสอบระบบ (Testing)](#-การทดสอบระบบ-testing)
-- [ข้อสมมติฐานและข้อจำกัด (Assumptions & Limitations)](#-ข้อสมมติฐานและข้อจำกัด-assumptions--limitations)
 - [ภาพตัวอย่างหน้าจอ (Screenshots)](#-ภาพตัวอย่างหน้าจอ-screenshots)
 
 ---
@@ -56,48 +57,20 @@
 
 ## 🧠 Business Logic & การออกแบบระบบ
 
-### 1. อัลกอริทึมคำนวณช่วงเวลาว่าง (Slot Availability)
+### 1. ประเภทการนัดหมายและข้อสมมติฐานเรื่องระยะเวลา (Appointment Types & Duration)
 
-```
-[ระบุ: แพทย์ + วันที่ + ประเภทการนัดหมาย]
-                       │
-                       ▼
-         ┌───────────────────────────┐
-         │ ตรวจสอบ Schedule Override │
-         └─────────────┬─────────────┘
-                       │
-         ┌─────────────┴─────────────┐
-   [มี Override รายวัน]        [ไม่มี Override]
-         │                            │
-  ┌──────┴──────┐              ┌──────┴──────┐
-  │ is_available│              │ ดึงตารางเวร │
-  │ = false?    │              │ รายสัปดาห์  │
-  └──────┬──────┘              └──────┬──────┘
-         ├────────[จริง]──▶ (คืนค่า: ไม่มี Slot ว่าง แพทย์ลา/ปิดตรวจ)
-         │
-  [ใช้เวลาตาม Override]        [ใช้เวลาตามตารางสัปดาห์]
-         │                            │
-         └─────────────┬──────────────┘
-                       │
-                       ▼
-         ┌───────────────────────────┐
-         │ สร้าง Candidate Slots     │ (ขยับทีละ duration_minutes)
-         │ ไม่รวมช่วงพักเบรก (Break)  │
-         └─────────────┬─────────────┘
-                       │
-                       ▼
-         ┌───────────────────────────┐
-         │ กรองการจองที่ active ออก │ (status NOT IN ('cancelled', 'rescheduled'))
-         └─────────────┬─────────────┘
-                       │
-                       ▼
-         ┌───────────────────────────┐
-         │ กรองเวลาที่ผ่านไปแล้วออก  │ (กรณีเป็นวันปัจจุบัน และเวลา <= เวลาปัจจุบัน + 1 ชม.)
-         └─────────────┬─────────────┘
-                       │
-                       ▼
-            [คืนค่ารายการ Slot ที่ว่าง]
-```
+ระบบรองรับการกำหนดประเภทการนัดหมายที่แตกต่างกันตามลักษณะทางคลินิก โดยมีค่าเริ่มต้นและข้อสมมติฐาน (Assumptions) ดังนี้:
+
+| ประเภทการนัดหมาย | ระยะเวลา | สีประจำประเภท | พฤติกรรมและเหตุผลทางการแพทย์ (Behavior & Clinical Assumptions) |
+|---|---|---|---|
+| **New Patient Visit**<br>*(ผู้ป่วยใหม่)* | **30 นาที** | `#4CAF50` (เขียว) | **ผู้ป่วยที่มารับการตรวจครั้งแรก**: ต้องใช้เวลาในการซักประวัติสุขภาพอย่างละเอียด ตรวจร่างกายเบื้องต้น บันทึกประวัติการแพ้ยา และตั้งข้อสมมติฐานการวินิจฉัยโรค จึงต้องการเวลามากกว่าปกติ |
+| **Follow-up Visit**<br>*(ตรวจติดตามอาการ)* | **15 นาที** | `#2196F3` (ฟ้า) | **ผู้ป่วยเดิมที่แพทย์นัดติดตามผล**: ตรวจประเมินอาการเดิมหลังจากรับการรักษา ดูผลตรวจทางห้องปฏิบัติการหรือเอกซเรย์ และสั่งจ่ายยาต่อเนื่อง เป็นการตรวจระยะสั้นที่เน้นความรวดเร็ว |
+| **Consultation**<br>*(ขอคำปรึกษาเฉพาะทาง)* | **20 นาที** | `#FF9800` (ส้ม) | **การขอคำปรึกษาเชิงลึกหรือ Second Opinion**: ผู้ป่วยที่ต้องการปรึกษาแนวทางการรักษาเฉพาะด้าน หรือแพทย์ส่งตัวเพื่อประเมินความเห็นเพิ่มเติม จึงกำหนดเวลาไว้ปานกลาง |
+| **Procedure**<br>*(ทำหัตถการผู้ป่วยนอก)* | **45 นาที** | `#F44336` (แดง) | **หัตถการขนาดเล็กที่ไม่ต้องนอนโรงพยาบาล**: เช่น การเย็บ/ตัดไหม, ล้างและทำแผลผ่าตัด, การฉีดยาเฉพาะจุด หรือการตรวจชิ้นเนื้อ ซึ่งต้องมีเวลาเตรียมอุปกรณ์และดูแลผู้ป่วยหลังทำหัตถการ |
+
+#### ข้อสมมติฐานในการออกแบบ (Design Assumptions):
+1. **Duration Stepping**: การคำนวณช่วงเวลาว่าง (Slot) จะแบ่งตามระยะเวลาของประเภทนัดหมายนั้นๆ (เช่น ประเภท 30 นาที ในช่วง 09:00–12:00 จะสร้าง Slot ที่ `09:00–09:30`, `09:30–10:00`, `10:00–10:30` ...) เพื่อป้องกันการเกิดเศษเวลาเหลื่อมกันที่ไม่ลงตัว (No Fragmented Time Gaps)
+2. **Dynamic Configuration**: ระยะเวลาและชื่อประเภทการนัดหมายไม่ได้ Hardcode อยู่ในระบบ แต่เก็บเป็น Master Data ในตาราง `appointment_types` ทำให้ผู้ดูแลระบบ (Admin) สามารถปรับเปลี่ยนเวลาหรือเพิ่มประเภทใหม่ได้ผ่าน CRUD API ตามนโยบายของแต่ละแผนกในอนาคต
 
 ---
 
@@ -153,7 +126,7 @@ await knex.transaction(async (trx) => {
 
 ---
 
-### 4. วงจรสถานะการนัดหมาย (Appointment Status Lifecycle)
+### 4. สถานะนัดหมายและผลกระทบต่อ Slot ว่าง (Status Lifecycle & Availability Impact)
 
 ```
                     ┌──────────────┐
@@ -174,8 +147,25 @@ await knex.transaction(async (trx) => {
                     └──────────────┘
 ```
 
-- **สถานะที่ล็อก Slot**: `booked`, `confirmed`, `checked_in`, `in_progress`, `completed`, `no_show`
-- **สถานะที่คืน Slot**: `cancelled`, `rescheduled` (ถูกตัดออกจากเงื่อนไขการค้นหา Slot ว่าง)
+#### รายละเอียดผลกระทบของแต่ละสถานะต่อความพร้อมใช้งานของ Slot:
+
+| สถานะ (Status) | ล็อก Slot หรือไม่? (Blocks Slot?) | คำอธิบายและเหตุผล (Reason & Business Behavior) |
+|---|:---:|---|
+| `booked` | 🔒 **ล็อก (Yes)** | รายการนัดหมายถูกสร้างขึ้นแล้ว และกำลังรอการยืนยันจากคนไข้หรือเจ้าหน้าที่ |
+| `confirmed` | 🔒 **ล็อก (Yes)** | ผู้ป่วยยืนยันการเดินทางมาตามนัดหมายแล้ว |
+| `checked_in` | 🔒 **ล็อก (Yes)** | ผู้ป่วยเดินทางมาถึงโรงพยาบาลและทำการเช็คอิน ณ จุดรับบัตรคิวแล้ว |
+| `in_progress` | 🔒 **ล็อก (Yes)** | ผู้ป่วยกำลังเข้าตรวจกับแพทย์ในห้องตรวจ |
+| `completed` | 🔒 **ล็อก (Yes)** | การตรวจเสร็จสิ้นแล้ว — **ยังคงล็อก Slot** เนื่องจากช่วงเวลาดังกล่าวได้ถูกใช้งานไปจริงในอดีตแล้ว ไม่สามารถให้ผู้ป่วยคนอื่นมาจองทับย้อนหลังได้ |
+| `no_show` | 🔒 **ล็อก (Yes)** | ผู้ป่วยไม่มาตามนัดหลังจากเวลาผ่านพ้นไป — **ยังคงล็อก Slot** เพื่อเก็บเป็นประวัติการใช้เวลาตรวจของแพทย์ และป้องกันการจองทับย้อนหลัง |
+| `cancelled` | 🔓 **ปลดล็อก (No)** | นัดหมายถูกยกเลิก — **Slot ว่างจะถูกคืนให้ระบบทันที** เพื่อเปิดโอกาสให้คนไข้รายอื่นสามารถเลือกจองช่วงเวลานี้ได้ (หากยังไม่เลยเวลาในวันปัจจุบัน) |
+| `rescheduled` | 🔓 **ปลดล็อก (No)** | นัดหมายถูกเลื่อนไปเวลาใหม่ — **Slot เดิมจะถูกคืนทันที** และระบบจะไปสร้างการจองใหม่ใน Slot ปลายทางแทน |
+
+> **กลไกการกรองใน SQL Query**:
+> เมื่อระบบคำนวณ Slot ว่าง จะใช้คำสั่ง:
+> ```sql
+> WHERE status NOT IN ('cancelled', 'rescheduled')
+> ```
+> ทำให้นัดหมายที่ยกเลิกหรือเลื่อนแล้ว จะไม่ถูกนำมาเป็นเงื่อนไขในการบล็อกเวลาว่าง
 
 ---
 
@@ -347,7 +337,9 @@ npm run dev
 
 ---
 
-## 🗄 Database Schema & ERD
+## 🗄 Database Schema & Storage Architecture
+
+### Entity Relationship Diagram (ERD)
 
 ```mermaid
 erDiagram
@@ -434,11 +426,30 @@ erDiagram
     }
 ```
 
-### เหตุผลที่เลือกใช้ PostgreSQL & Knex.js
-1. **ACID Transactions & Row-Level Lock**: ความจำเป็นในการใช้ `SELECT ... FOR UPDATE` เพื่อแก้ปัญหา Concurrency Double Booking
-2. **PostgreSQL Sequences**: สร้างเลข HN ต่อเนื่องแบบ Atomic ปลอดภัยจากการชนกัน
-3. **Strict Constraints & Types**: รองรับ Data Type แบบ `TIME`, `DATE`, `UUID` และ `CHECK` constraints ช่วยคุมความถูกต้องของข้อมูลตั้งแต่ชั้น Database
-4. **Knex.js**: ควบคุม Database Migration และ Seed แบบ Type-safe พร้อมรองรับ Connection Pooling และการแยก Test Environment ด้วย `TRUNCATE CASCADE`
+### เหตุผลในการเลือกใช้ Relational Database (PostgreSQL) และ Knex.js
+
+ในการพัฒนาระบบนัดหมายโรงพยาบาล (Hospital Information System) การเลือกใช้ **PostgreSQL (Relational Database)** ร่วมกับ **Knex.js** มีเหตุผลทางเทคนิคและสถาปัตยกรรมที่สำคัญดังนี้:
+
+1. **การรับประกันความถูกต้องตามหลัก ACID และการล็อกแถวข้อมูล (Pessimistic Row Locking)**:
+   - ปัญหาที่ร้ายแรงที่สุดของระบบนัดหมายคือ **"การจองเวลาเดียวกันซ้ำ (Double Booking)"** เมื่อมีเจ้าหน้าที่หลายคนกดยืนยันการจองพร้อมกัน
+   - PostgreSQL รองรับ **ACID Transactions** และคำสั่ง `SELECT ... FOR UPDATE` ทำให้เราสามารถล็อกแถวของแพทย์คนนั้นในระดับ Database Engine ได้ทันที คำขออื่นที่เข้ามาพร้อมกันจะถูกจัดคิวรออย่างเป็นระเบียบ และได้รับแจ้งเตือน `409 Conflict (SLOT_TAKEN)` เมื่อพบว่าเวลานั้นถูกจองไปแล้ว
+   - ฐานข้อมูลประเภท NoSQL / Document Store หรือ In-memory ส่วนใหญ่ทำงานแบบ Eventual Consistency ซึ่งจัดการ Transactional Row Lock บนช่วงเวลาที่ซ้อนทับกันได้ยากและเสี่ยงต่อข้อมูลคลาดเคลื่อน
+
+2. **การสร้างรหัส Hospital Number (HN) ต่อเนื่องด้วย PostgreSQL Sequence**:
+   - การลงทะเบียนผู้ป่วยต้องการรหัส HN แบบเรียงลำดับไม่กระโดด (`HN-000001`, `HN-000002` ...)
+   - การใช้ `patient_hn_seq` ของ PostgreSQL รับประกันความเป็น Atomic และไม่มีทางซ้ำซ้อน แม้จะมีการลงทะเบียนคนไข้ใหม่เข้ามาพร้อมๆ กันจากหลายเคาน์เตอร์
+
+3. **ความสัมพันธ์ของข้อมูลที่ซับซ้อนและการรักษา Referential Integrity**:
+   - ระบบนี้มีความสัมพันธ์เชื่อมโยงหลายชั้น: `Users` ➔ `Doctors` ➔ `DoctorSchedules` ➔ `ScheduleOverrides` ➔ `Appointments` ➔ `Patients` ➔ `AppointmentTypes`
+   - Relational Database ช่วยบังคับใช้ Foreign Key Constraints และป้องกันการเกิด Orphan Records (เช่น ป้องกันการลบข้อมูลแพทย์ที่มีนัดหมายอยู่)
+
+4. **การควบคุมความถูกต้องของข้อมูลเวลาด้วย Data Types และ CHECK Constraints**:
+   - PostgreSQL มี Data Type เฉพาะสำหรับเวลาอย่าง `DATE` และ `TIME` พร้อมรองรับ `CHECK (end_time > start_time)`, `CHECK (duration_minutes > 0)` และ `CHECK (break_end > break_start)` ทำให้ข้อมูลผิดเงื่อนไขถูกปฏิเสธตั้งแต่ระดับ Database Layer
+
+5. **เหตุผลที่เลือกใช้ Knex.js แทน ORM ขนาดใหญ่**:
+   - **Full SQL Control**: สามารถเขียนคำสั่งล็อกแถว `forUpdate()`, จัดการ Transaction `trx`, และ JOIN ข้อมูลหลายตารางได้อย่างแม่นยำ 100%
+   - **Type Safety & Lightweight**: ทำงานร่วมกับ TypeScript ได้สะอาด ไม่มี Performance Overhead หรือ N+1 Query ที่ควบคุมยากเหมือน Full ORM
+   - **Deterministic Test Environment**: จัดการ Database Migration และ Seed Data ได้สะดวกรวดเร็ว รองรับการทำ `TRUNCATE TABLE ... CASCADE` ระหว่างรัน Automated Integration Tests
 
 ---
 
