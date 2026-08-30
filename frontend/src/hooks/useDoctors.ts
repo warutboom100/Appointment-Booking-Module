@@ -5,15 +5,16 @@ import {
   createDoctorApi,
   updateDoctorApi,
   deleteDoctorApi,
+  type GetDoctorsParams,
 } from '@/api/doctor.api';
 import type { Doctor } from '@/types';
 
 export const DOCTORS_KEY = 'doctors';
 
-export function useDoctors(departmentId?: string) {
+export function useDoctors(params?: GetDoctorsParams) {
   return useQuery({
-    queryKey: [DOCTORS_KEY, departmentId],
-    queryFn: () => getDoctorsApi(departmentId),
+    queryKey: [DOCTORS_KEY, params],
+    queryFn: () => getDoctorsApi(params),
     staleTime: 5 * 60 * 1000,
   });
 }

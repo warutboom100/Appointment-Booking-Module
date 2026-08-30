@@ -1,9 +1,12 @@
-'use client';
-
+import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { formatDate } from '@/lib/format';
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
+import { useDeleteOverride } from '@/hooks/useSchedules';
+import { useToast } from '@/providers/ToastProvider';
+import { getErrorMessage } from '@/api/client';
+import { formatDate, formatTime } from '@/lib/format';
 import type { Doctor, DoctorSchedule, ScheduleOverride } from '@/types';
 
 export interface DayShiftInfo {
@@ -20,6 +23,8 @@ export interface DayScheduleDrawerProps {
   selectedDate: string; // YYYY-MM-DD
   dayShifts: DayShiftInfo[];
   onAddOverride?: () => void;
+  onEditOverride?: (override: ScheduleOverride) => void;
+  onSuccess?: () => void;
 }
 
 export function DayScheduleDrawer({
@@ -28,7 +33,34 @@ export function DayScheduleDrawer({
   selectedDate,
   dayShifts,
   onAddOverride,
+  onEditOverride,
+  onSuccess,
 }: DayScheduleDrawerProps) {
+  const { addToast } = useToast();
+  const deleteOverrideMutation = useDeleteOverride();
+  const [overrideToDelete, setOverrideToDelete] = useState<{ id: string; doctorName: string } | null>(null);
+
+  const handleConfirmDeleteOverride = async () => {
+    if (!overrideToDelete) return;
+    try {
+      await deleteOverrideMutation.mutateAsync(overrideToDelete.id);
+      addToast({
+        title: 'ลบสำเร็จ',
+        description: 'ลบรายการวันหยุด / เวรพิเศษเรียบร้อยแล้ว',
+        type: 'success',
+      });
+      setOverrideToDelete(null);
+      if (onSuccess) onSuccess();
+      onClose();
+    } catch (err) {
+      addToast({
+        title: 'เกิดข้อผิดพลาด',
+        description: getErrorMessage(err),
+        type: 'error',
+      });
+    }
+  };
+
   const availableCount = dayShifts.filter((s) => s.isAvailable).length;
 
   return (
@@ -126,9 +158,9 @@ export function DayScheduleDrawer({
                     <span className="text-[var(--muted)]">⏰ เวลาตรวจ:</span>
                     <span className="font-semibold font-mono">
                       {shift.override && shift.override.is_available
-                        ? `${shift.override.start_time} - ${shift.override.end_time} น.`
+                        ? `${formatTime(shift.override.start_time)} - ${formatTime(shift.override.end_time)} น.`
                         : shift.schedule
-                        ? `${shift.schedule.start_time} - ${shift.schedule.end_time} น.`
+                        ? `${formatTime(shift.schedule.start_time)} - ${formatTime(shift.schedule.end_time)} น.`
                         : '-'}
                     </span>
                   </div>
@@ -139,8 +171,8 @@ export function DayScheduleDrawer({
                     <div className="text-[var(--muted)] text-[11px]">
                       พักเบรค:{' '}
                       <span className="font-mono text-[var(--fg)]">
-                        {shift.override?.break_start || shift.schedule?.break_start} -{' '}
-                        {shift.override?.break_end || shift.schedule?.break_end} น.
+                        {formatTime(shift.override?.break_start || shift.schedule?.break_start)} -{' '}
+                        {formatTime(shift.override?.break_end || shift.schedule?.break_end)} น.
                       </span>
                     </div>
                   )}
@@ -151,12 +183,63 @@ export function DayScheduleDrawer({
                       หมายเหตุ: {shift.override.reason}
                     </div>
                   )}
+
+                  {/* Override Actions */}
+                  {shift.override && (
+                    <div className="w-full pt-2 mt-1 border-t border-[var(--border-subtle)] flex items-center justify-end gap-2">
+                      {onEditOverride && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            onClose();
+                            if (shift.override && onEditOverride) onEditOverride(shift.override);
+                          }}
+                          className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/40 text-xs py-1"
+                        >
+                          แก้ไขรายการ
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (shift.override) {
+                            setOverrideToDelete({
+                              id: shift.override.id,
+                              doctorName: `${doc.title || ''} ${doc.first_name} ${doc.last_name}`,
+                            });
+                          }
+                        }}
+                        className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs py-1"
+                      >
+                        ลบวันหยุด/เวรพิเศษ
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={!!overrideToDelete}
+        title="ยืนยันการลบวันหยุด / เวรพิเศษ"
+        message={
+          <span>
+            คุณต้องการลบรายการวันหยุด / เวรพิเศษของ{' '}
+            <strong className="text-[var(--fg)]">{overrideToDelete?.doctorName}</strong> ประจำวันที่{' '}
+            <strong className="text-[var(--fg)]">{formatDate(selectedDate)}</strong> ใช่หรือไม่?
+          </span>
+        }
+        subMessage="เมื่อลบแล้ว แพทย์จะกลับมามีสถานะออกตรวจตามตารางเวรปกติของวันดังกล่าว"
+        confirmLabel="ลบรายการ"
+        isLoading={deleteOverrideMutation.isPending}
+        onConfirm={handleConfirmDeleteOverride}
+        onCancel={() => setOverrideToDelete(null)}
+      />
     </Modal>
   );
 }

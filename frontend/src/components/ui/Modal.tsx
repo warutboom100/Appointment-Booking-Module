@@ -83,6 +83,7 @@ export function Modal({
 
             {showCloseButton && (
               <button
+                type="button"
                 onClick={onClose}
                 aria-label="ปิดหน้าต่าง"
                 className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--surface-subtle)] transition-colors cursor-pointer active:scale-95"

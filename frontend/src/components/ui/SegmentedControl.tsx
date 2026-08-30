@@ -36,6 +36,7 @@ export function SegmentedControl<T extends string | number>({
         const isSelected = option.value === value;
         return (
           <button
+            type="button"
             key={String(option.value)}
             role="tab"
             aria-selected={isSelected}

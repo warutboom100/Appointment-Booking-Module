@@ -1,9 +1,10 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import Link from 'next/link';
 import { usePatient, usePatientHistory } from '@/hooks/usePatients';
 import { PatientHistoryTimeline } from '@/components/patients/PatientHistoryTimeline';
+import { BookingModal } from '@/components/appointments/BookingModal';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +18,7 @@ export default function PatientDetailPage({
 }) {
   const resolvedParams = use(params);
   const patientId = resolvedParams.id;
+  const [isBookingOpen, setIsBookingOpen] = useState(false);
 
   const { data: patient, isLoading: isPatientLoading, error: patientError } = usePatient(patientId);
   const { data: appointments, isLoading: isHistoryLoading } = usePatientHistory(patientId);
@@ -70,6 +72,20 @@ export default function PatientDetailPage({
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => setIsBookingOpen(true)}
+            leftIcon={
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            }
+          >
+            นัดหมายตรวจแพทย์
+          </Button>
           <Link href="/patients">
             <Button variant="secondary" size="sm">
               ← ย้อนกลับ
@@ -186,6 +202,13 @@ export default function PatientDetailPage({
           </Card>
         </div>
       </div>
+
+      {/* Booking Modal with pre-selected patient */}
+      <BookingModal
+        isOpen={isBookingOpen}
+        onClose={() => setIsBookingOpen(false)}
+        defaultPatient={patient}
+      />
     </div>
   );
 }

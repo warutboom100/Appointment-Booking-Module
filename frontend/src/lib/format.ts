@@ -17,6 +17,14 @@ export function formatDate(value: string | Date | undefined | null): string {
 }
 
 /**
+ * Format time from HH:MM:SS to HH:MM (24-hour format)
+ */
+export function formatTime(timeString?: string | null): string {
+  if (!timeString) return '';
+  return timeString.slice(0, 5);
+}
+
+/**
  * Format full date and time e.g. "15 ม.ค. 2567 14:30 น."
  */
 export function formatDateTime(value: string | Date | undefined | null): string {
@@ -82,4 +90,33 @@ export function formatPhone(phone: string | undefined | null): string {
     return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 5)}-${cleaned.slice(5)}`;
   }
   return phone;
+}
+
+/**
+ * Appointment Status Metadata (Label & Badge Variant)
+ */
+export function getAppointmentStatusMeta(status: string): {
+  label: string;
+  variant: 'blue' | 'teal' | 'amber' | 'indigo' | 'emerald' | 'rose' | 'purple' | 'neutral';
+} {
+  switch (status) {
+    case 'booked':
+      return { label: 'นัดหมายแล้ว', variant: 'blue' };
+    case 'confirmed':
+      return { label: 'ยืนยันนัดหมาย', variant: 'teal' };
+    case 'checked_in':
+      return { label: 'มาถึงแล้ว (รอตรวจ)', variant: 'amber' };
+    case 'in_progress':
+      return { label: 'กำลังตรวจ', variant: 'indigo' };
+    case 'completed':
+      return { label: 'ตรวจเสร็จสิ้น', variant: 'emerald' };
+    case 'cancelled':
+      return { label: 'ยกเลิกแล้ว', variant: 'rose' };
+    case 'no_show':
+      return { label: 'ไม่มาตามนัด', variant: 'neutral' };
+    case 'rescheduled':
+      return { label: 'เลื่อนนัดแล้ว', variant: 'purple' };
+    default:
+      return { label: status, variant: 'neutral' };
+  }
 }

@@ -81,6 +81,8 @@ export const doctorIdParamSchema = z.object({
 });
 
 export const overrideQuerySchema = z.object({
+  doctor_id: z.string().uuid('รูปแบบ Doctor ID ไม่ถูกต้อง').optional(),
+  department_id: z.string().uuid('รูปแบบ Department ID ไม่ถูกต้อง').optional(),
   from_date: z.string().regex(dateRegex, 'รูปแบบ from_date ต้องเป็น YYYY-MM-DD').optional(),
   to_date: z.string().regex(dateRegex, 'รูปแบบ to_date ต้องเป็น YYYY-MM-DD').optional(),
   is_available: z

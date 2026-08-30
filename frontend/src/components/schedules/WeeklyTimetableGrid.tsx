@@ -1,17 +1,19 @@
-'use client';
-
+import { useState } from 'react';
 import { Table, type Column } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { ConfirmDialog } from '@/components/feedback/ConfirmDialog';
 import { useDeleteSchedule } from '@/hooks/useSchedules';
 import { useToast } from '@/providers/ToastProvider';
 import { getErrorMessage } from '@/api/client';
+import { formatTime } from '@/lib/format';
 import type { Doctor, DoctorSchedule } from '@/types';
 
 export interface WeeklyTimetableGridProps {
   doctors: Doctor[];
   allSchedules: Record<string, DoctorSchedule[]>;
   isLoading?: boolean;
+  onEditSchedule?: (schedule: DoctorSchedule) => void;
 }
 
 const DAY_NAMES = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
@@ -27,9 +29,11 @@ export function WeeklyTimetableGrid({
   doctors,
   allSchedules,
   isLoading = false,
+  onEditSchedule,
 }: WeeklyTimetableGridProps) {
   const { addToast } = useToast();
   const deleteScheduleMutation = useDeleteSchedule();
+  const [scheduleToDelete, setScheduleToDelete] = useState<ScheduleRowItem | null>(null);
 
   const rows: ScheduleRowItem[] = [];
 
@@ -53,15 +57,16 @@ export function WeeklyTimetableGrid({
     return a.schedule.start_time.localeCompare(b.schedule.start_time);
   });
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('คุณต้องการลบตารางออกตรวจนี้ใช่หรือไม่?')) return;
+  const handleConfirmDelete = async () => {
+    if (!scheduleToDelete) return;
     try {
-      await deleteScheduleMutation.mutateAsync(id);
+      await deleteScheduleMutation.mutateAsync(scheduleToDelete.id);
       addToast({
         title: 'ลบสำเร็จ',
         description: 'ลบตารางออกตรวจประจำสัปดาห์แล้ว',
         type: 'success',
       });
+      setScheduleToDelete(null);
     } catch (err) {
       addToast({
         title: 'เกิดข้อผิดพลาด',
@@ -109,7 +114,7 @@ export function WeeklyTimetableGrid({
       header: 'เวลาออกตรวจ',
       render: (r) => (
         <div className="flex items-center gap-2 font-mono text-xs font-semibold text-[var(--fg)]">
-          <span>{r.schedule.start_time} - {r.schedule.end_time} น.</span>
+          <span>{formatTime(r.schedule.start_time)} - {formatTime(r.schedule.end_time)} น.</span>
         </div>
       ),
     },
@@ -122,7 +127,7 @@ export function WeeklyTimetableGrid({
         }
         return (
           <span className="text-xs font-mono text-[var(--muted)]">
-            {r.schedule.break_start} - {r.schedule.break_end} น.
+            {formatTime(r.schedule.break_start)} - {formatTime(r.schedule.break_end)} น.
           </span>
         );
       },
@@ -141,25 +146,58 @@ export function WeeklyTimetableGrid({
       header: 'จัดการ',
       align: 'right',
       render: (r) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handleDelete(r.id)}
-          className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-        >
-          ลบ
-        </Button>
+        <div className="flex items-center justify-end gap-1.5">
+          {onEditSchedule && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onEditSchedule(r.schedule)}
+              className="text-teal-600 hover:text-teal-700 hover:bg-teal-50 dark:hover:bg-teal-950/40"
+            >
+              แก้ไข
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setScheduleToDelete(r)}
+            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+          >
+            ลบ
+          </Button>
+        </div>
       ),
     },
   ];
 
   return (
-    <Table
-      columns={columns}
-      data={rows}
-      keyExtractor={(r) => r.id}
-      isLoading={isLoading}
-      emptyMessage="ยังไม่มีตารางออกตรวจประจำสัปดาห์ของแพทย์"
-    />
+    <>
+      <Table
+        columns={columns}
+        data={rows}
+        keyExtractor={(r) => r.id}
+        isLoading={isLoading}
+        emptyMessage="ยังไม่มีตารางออกตรวจประจำสัปดาห์ของแพทย์"
+      />
+
+      <ConfirmDialog
+        isOpen={!!scheduleToDelete}
+        title="ยืนยันการลบตารางออกตรวจ"
+        message={
+          <span>
+            คุณต้องการลบตารางออกตรวจของ{' '}
+            <strong className="text-[var(--fg)]">
+              {scheduleToDelete?.doctor.title || ''} {scheduleToDelete?.doctor.first_name} {scheduleToDelete?.doctor.last_name}
+            </strong>{' '}
+            (วัน{scheduleToDelete?.dayName} {formatTime(scheduleToDelete?.schedule.start_time)} - {formatTime(scheduleToDelete?.schedule.end_time)} น.) ใช่หรือไม่?
+          </span>
+        }
+        subMessage="การลบตารางออกตรวจจะทำให้คิวตรวจประจำวันดังกล่าวของแพทย์ถูกยกเลิก"
+        confirmLabel="ลบตารางออกตรวจ"
+        isLoading={deleteScheduleMutation.isPending}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setScheduleToDelete(null)}
+      />
+    </>
   );
 }

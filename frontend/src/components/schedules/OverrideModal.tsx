@@ -4,12 +4,14 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { useCreateOverride } from '@/hooks/useSchedules';
+import { useCreateOverride, useUpdateOverride } from '@/hooks/useSchedules';
 import { useToast } from '@/providers/ToastProvider';
 import { getErrorMessage } from '@/api/client';
-import type { Doctor } from '@/types';
+import { formatTime } from '@/lib/format';
+import type { Doctor, ScheduleOverride } from '@/types';
 
 export interface OverrideModalProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ export interface OverrideModalProps {
   doctors: Doctor[];
   selectedDoctorId?: string;
   defaultDate?: string;
+  overrideToEdit?: ScheduleOverride | null;
   onSuccess?: () => void;
 }
 
@@ -26,10 +29,13 @@ export function OverrideModal({
   doctors,
   selectedDoctorId,
   defaultDate,
+  overrideToEdit,
   onSuccess,
 }: OverrideModalProps) {
   const { addToast } = useToast();
   const createOverrideMutation = useCreateOverride();
+  const updateOverrideMutation = useUpdateOverride();
+  const isEditing = !!overrideToEdit;
 
   const [doctorId, setDoctorId] = useState('');
   const [overrideDate, setOverrideDate] = useState('');
@@ -42,21 +48,34 @@ export function OverrideModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (selectedDoctorId) {
-      setDoctorId(selectedDoctorId);
-    } else if (doctors.length > 0 && !doctorId) {
-      setDoctorId(doctors[0].id);
-    }
-  }, [selectedDoctorId, doctors, doctorId]);
-
-  useEffect(() => {
-    if (defaultDate) {
+    if (overrideToEdit) {
+      setDoctorId(overrideToEdit.doctor_id);
+      setOverrideDate(overrideToEdit.override_date);
+      setOverrideType(overrideToEdit.is_available ? 'extra' : 'off');
+      setStartTime(formatTime(overrideToEdit.start_time) || '09:00');
+      setEndTime(formatTime(overrideToEdit.end_time) || '16:00');
+      setBreakStart(formatTime(overrideToEdit.break_start) || '12:00');
+      setBreakEnd(formatTime(overrideToEdit.break_end) || '13:00');
+      setReason(overrideToEdit.reason || (overrideToEdit.is_available ? 'ออกตรวจเพิ่มกรณีพิเศษ' : 'ลาพักร้อน'));
+    } else if (defaultDate) {
       setOverrideDate(defaultDate);
+      if (selectedDoctorId) {
+        setDoctorId(selectedDoctorId);
+      } else if (doctors.length > 0 && !doctorId) {
+        setDoctorId(doctors[0].id);
+      }
+      setOverrideType('off');
+      setReason('ลาพักร้อน');
     } else {
       const today = new Date().toISOString().split('T')[0];
       setOverrideDate(today);
+      if (selectedDoctorId) {
+        setDoctorId(selectedDoctorId);
+      } else if (doctors.length > 0 && !doctorId) {
+        setDoctorId(doctors[0].id);
+      }
     }
-  }, [defaultDate]);
+  }, [overrideToEdit, defaultDate, selectedDoctorId, doctors]);
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -73,33 +92,49 @@ export function OverrideModal({
     return Object.keys(e).length === 0;
   };
 
+  const isPending = createOverrideMutation.isPending || updateOverrideMutation.isPending;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
     const isAvailable = overrideType === 'extra';
+    const payload = {
+      override_date: overrideDate,
+      is_available: isAvailable,
+      start_time: isAvailable && startTime ? formatTime(startTime) : null,
+      end_time: isAvailable && endTime ? formatTime(endTime) : null,
+      break_start: isAvailable && breakStart ? formatTime(breakStart) : null,
+      break_end: isAvailable && breakEnd ? formatTime(breakEnd) : null,
+      reason: reason.trim() || undefined,
+    };
 
     try {
-      await createOverrideMutation.mutateAsync({
-        doctorId,
-        input: {
-          override_date: overrideDate,
-          is_available: isAvailable,
-          start_time: isAvailable ? startTime : null,
-          end_time: isAvailable ? endTime : null,
-          break_start: isAvailable && breakStart ? breakStart : null,
-          break_end: isAvailable && breakEnd ? breakEnd : null,
-          reason: reason.trim() || undefined,
-        },
-      });
-
-      addToast({
-        title: 'บันทึกสำเร็จ',
-        description: isAvailable
-          ? 'บันทึกเวรออกตรวจพิเศษเรียบร้อยแล้ว'
-          : 'บันทึกวันหยุดแพทย์ (Leave Override) เรียบร้อยแล้ว',
-        type: 'success',
-      });
+      if (isEditing && overrideToEdit) {
+        await updateOverrideMutation.mutateAsync({
+          id: overrideToEdit.id,
+          input: payload,
+        });
+        addToast({
+          title: 'แก้ไขสำเร็จ',
+          description: isAvailable
+            ? 'อัปเดตเวรออกตรวจพิเศษเรียบร้อยแล้ว'
+            : 'อัปเดตวันหยุดแพทย์เรียบร้อยแล้ว',
+          type: 'success',
+        });
+      } else {
+        await createOverrideMutation.mutateAsync({
+          doctorId,
+          input: payload,
+        });
+        addToast({
+          title: 'บันทึกสำเร็จ',
+          description: isAvailable
+            ? 'บันทึกเวรออกตรวจพิเศษเรียบร้อยแล้ว'
+            : 'บันทึกวันหยุดแพทย์ (Leave Override) เรียบร้อยแล้ว',
+          type: 'success',
+        });
+      }
       onClose();
       if (onSuccess) onSuccess();
     } catch (err) {
@@ -115,20 +150,20 @@ export function OverrideModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="บันทึกวันหยุด / เวรพิเศษ (Schedule Override)"
-      subtitle="กำหนดวันหยุดหรือเพิ่มช่วงเวลาออกตรวจพิเศษเฉพาะวัน"
+      title={isEditing ? 'แก้ไขวันหยุด / เวรพิเศษ (Edit Override)' : 'บันทึกวันหยุด / เวรพิเศษ (Schedule Override)'}
+      subtitle={isEditing ? 'ปรับปรุงข้อมูลวันหยุดหรือเวรตรวจพิเศษเฉพาะวัน' : 'กำหนดวันหยุดหรือเพิ่มช่วงเวลาออกตรวจพิเศษเฉพาะวัน'}
       maxWidth="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={createOverrideMutation.isPending}>
+          <Button variant="secondary" onClick={onClose} disabled={isPending}>
             ยกเลิก
           </Button>
           <Button
             variant="primary"
             onClick={handleSubmit}
-            isLoading={createOverrideMutation.isPending}
+            isLoading={isPending}
           >
-            บันทึกข้อมูล
+            {isEditing ? 'บันทึกการแก้ไข' : 'บันทึกข้อมูล'}
           </Button>
         </>
       }
@@ -138,6 +173,7 @@ export function OverrideModal({
         <Select
           label="แพทย์ผู้ตรวจ (Doctor) *"
           value={doctorId}
+          disabled={isEditing}
           onChange={(e) => {
             setDoctorId(e.target.value);
             if (errors.doctorId) setErrors((p) => ({ ...p, doctorId: '' }));
@@ -182,35 +218,31 @@ export function OverrideModal({
         {overrideType === 'extra' && (
           <div className="p-4 rounded-2xl bg-[var(--surface-subtle)] border border-[var(--border-subtle)] flex flex-col gap-4 animate-pop">
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                type="time"
+              <TimeInput
                 label="เวลาเริ่มออกตรวจ *"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={setStartTime}
                 error={errors.startTime}
               />
-              <Input
-                type="time"
+              <TimeInput
                 label="เวลาสิ้นสุดตรวจ *"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={setEndTime}
                 error={errors.endTime}
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                type="time"
+              <TimeInput
                 label="เริ่มพัก"
                 value={breakStart}
-                onChange={(e) => setBreakStart(e.target.value)}
+                onChange={setBreakStart}
                 optional
               />
-              <Input
-                type="time"
+              <TimeInput
                 label="สิ้นสุดพัก"
                 value={breakEnd}
-                onChange={(e) => setBreakEnd(e.target.value)}
+                onChange={setBreakEnd}
                 optional
               />
             </div>

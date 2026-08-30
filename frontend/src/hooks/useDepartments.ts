@@ -5,15 +5,16 @@ import {
   createDepartmentApi,
   updateDepartmentApi,
   deleteDepartmentApi,
+  type GetDepartmentsParams,
 } from '@/api/department.api';
 import type { Department } from '@/types';
 
 export const DEPARTMENTS_KEY = 'departments';
 
-export function useDepartments() {
+export function useDepartments(params?: GetDepartmentsParams) {
   return useQuery({
-    queryKey: [DEPARTMENTS_KEY],
-    queryFn: getDepartmentsApi,
+    queryKey: [DEPARTMENTS_KEY, params],
+    queryFn: () => getDepartmentsApi(params),
     staleTime: 5 * 60 * 1000,
   });
 }

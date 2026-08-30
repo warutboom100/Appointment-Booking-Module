@@ -107,7 +107,12 @@ export function useRescheduleAppointment() {
       input,
     }: {
       id: string;
-      input: { new_date: string; new_start_time: string; new_doctor_id?: string };
+      input: {
+        appointment_date: string;
+        start_time: string;
+        reason_for_visit?: string | null;
+        notes?: string | null;
+      };
     }) => rescheduleAppointmentApi(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [APPOINTMENTS_KEY] });

@@ -70,11 +70,11 @@ export async function updateAppointmentStatusApi(
 
 export async function cancelAppointmentApi(
   id: string,
-  reason: string,
+  cancellation_reason: string,
 ): Promise<Appointment> {
   const { data } = await api.patch<ApiResponse<Appointment>>(
     `/appointments/${id}/cancel`,
-    { reason },
+    { cancellation_reason },
   );
   return data.data;
 }
@@ -82,9 +82,10 @@ export async function cancelAppointmentApi(
 export async function rescheduleAppointmentApi(
   id: string,
   input: {
-    new_date: string;
-    new_start_time: string;
-    new_doctor_id?: string;
+    appointment_date: string;
+    start_time: string;
+    reason_for_visit?: string | null;
+    notes?: string | null;
   },
 ): Promise<Appointment> {
   const { data } = await api.post<ApiResponse<Appointment>>(

@@ -4,10 +4,12 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
+import { TimeInput } from '@/components/ui/TimeInput';
 import { Button } from '@/components/ui/Button';
-import { useCreateSchedule } from '@/hooks/useSchedules';
+import { useCreateSchedule, useUpdateSchedule } from '@/hooks/useSchedules';
 import { useToast } from '@/providers/ToastProvider';
 import { getErrorMessage } from '@/api/client';
+import { formatTime } from '@/lib/format';
 import type { Doctor, DoctorSchedule } from '@/types';
 
 export interface ScheduleModalProps {
@@ -39,6 +41,8 @@ export function ScheduleModal({
 }: ScheduleModalProps) {
   const { addToast } = useToast();
   const createScheduleMutation = useCreateSchedule();
+  const updateScheduleMutation = useUpdateSchedule();
+  const isEditing = !!scheduleToEdit;
 
   const [doctorId, setDoctorId] = useState('');
   const [dayOfWeek, setDayOfWeek] = useState<number>(1);
@@ -51,29 +55,32 @@ export function ScheduleModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    if (selectedDoctorId) {
-      setDoctorId(selectedDoctorId);
-    } else if (doctors.length > 0 && !doctorId) {
-      setDoctorId(doctors[0].id);
-    }
-  }, [selectedDoctorId, doctors, doctorId]);
-
-  useEffect(() => {
     if (scheduleToEdit) {
       setDoctorId(scheduleToEdit.doctor_id);
       setDayOfWeek(scheduleToEdit.day_of_week);
-      setStartTime(scheduleToEdit.start_time);
-      setEndTime(scheduleToEdit.end_time);
+      setStartTime(formatTime(scheduleToEdit.start_time) || '09:00');
+      setEndTime(formatTime(scheduleToEdit.end_time) || '16:00');
       if (scheduleToEdit.break_start && scheduleToEdit.break_end) {
         setHasBreak(true);
-        setBreakStart(scheduleToEdit.break_start);
-        setBreakEnd(scheduleToEdit.break_end);
+        setBreakStart(formatTime(scheduleToEdit.break_start) || '12:00');
+        setBreakEnd(formatTime(scheduleToEdit.break_end) || '13:00');
       } else {
         setHasBreak(false);
       }
       setMaxAppointments(scheduleToEdit.max_appointments ? String(scheduleToEdit.max_appointments) : '');
+    } else if (selectedDoctorId) {
+      setDoctorId(selectedDoctorId);
+      setDayOfWeek(1);
+      setStartTime('09:00');
+      setEndTime('16:00');
+      setBreakStart('12:00');
+      setBreakEnd('13:00');
+      setHasBreak(true);
+      setMaxAppointments('20');
+    } else if (doctors.length > 0 && !doctorId) {
+      setDoctorId(doctors[0].id);
     }
-  }, [scheduleToEdit]);
+  }, [scheduleToEdit, selectedDoctorId, doctors]);
 
   const validate = (): boolean => {
     const e: Record<string, string> = {};
@@ -97,28 +104,43 @@ export function ScheduleModal({
     return Object.keys(e).length === 0;
   };
 
+  const isPending = createScheduleMutation.isPending || updateScheduleMutation.isPending;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
 
-    try {
-      await createScheduleMutation.mutateAsync({
-        doctorId,
-        input: {
-          day_of_week: dayOfWeek,
-          start_time: startTime,
-          end_time: endTime,
-          break_start: hasBreak && breakStart ? breakStart : null,
-          break_end: hasBreak && breakEnd ? breakEnd : null,
-          max_appointments: maxAppointments ? parseInt(maxAppointments, 10) : null,
-        },
-      });
+    const payload = {
+      day_of_week: dayOfWeek,
+      start_time: formatTime(startTime),
+      end_time: formatTime(endTime),
+      break_start: hasBreak && breakStart ? formatTime(breakStart) : null,
+      break_end: hasBreak && breakEnd ? formatTime(breakEnd) : null,
+      max_appointments: maxAppointments ? parseInt(maxAppointments, 10) : null,
+    };
 
-      addToast({
-        title: 'บันทึกสำเร็จ',
-        description: 'สร้างตารางออกตรวจประจำสัปดาห์เรียบร้อยแล้ว',
-        type: 'success',
-      });
+    try {
+      if (isEditing && scheduleToEdit) {
+        await updateScheduleMutation.mutateAsync({
+          id: scheduleToEdit.id,
+          input: payload,
+        });
+        addToast({
+          title: 'แก้ไขสำเร็จ',
+          description: 'อัปเดตตารางออกตรวจประจำสัปดาห์เรียบร้อยแล้ว',
+          type: 'success',
+        });
+      } else {
+        await createScheduleMutation.mutateAsync({
+          doctorId,
+          input: payload,
+        });
+        addToast({
+          title: 'บันทึกสำเร็จ',
+          description: 'สร้างตารางออกตรวจประจำสัปดาห์เรียบร้อยแล้ว',
+          type: 'success',
+        });
+      }
       onClose();
       if (onSuccess) onSuccess();
     } catch (err) {
@@ -134,20 +156,20 @@ export function ScheduleModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="เพิ่มตารางเวรประจำสัปดาห์ (Weekly Schedule)"
-      subtitle="กำหนดวันและช่วงเวลาออกตรวจประจำของแพทย์"
+      title={isEditing ? 'แก้ไขตารางเวรประจำสัปดาห์ (Edit Schedule)' : 'เพิ่มตารางเวรประจำสัปดาห์ (Weekly Schedule)'}
+      subtitle={isEditing ? 'ปรับปรุงวันและช่วงเวลาออกตรวจประจำของแพทย์' : 'กำหนดวันและช่วงเวลาออกตรวจประจำของแพทย์'}
       maxWidth="lg"
       footer={
         <>
-          <Button variant="secondary" onClick={onClose} disabled={createScheduleMutation.isPending}>
+          <Button variant="secondary" onClick={onClose} disabled={isPending}>
             ยกเลิก
           </Button>
           <Button
             variant="primary"
             onClick={handleSubmit}
-            isLoading={createScheduleMutation.isPending}
+            isLoading={isPending}
           >
-            บันทึกตารางเวร
+            {isEditing ? 'บันทึกการแก้ไข' : 'บันทึกตารางเวร'}
           </Button>
         </>
       }
@@ -157,6 +179,7 @@ export function ScheduleModal({
         <Select
           label="แพทย์ผู้ตรวจ (Doctor) *"
           value={doctorId}
+          disabled={isEditing}
           onChange={(e) => {
             setDoctorId(e.target.value);
             if (errors.doctorId) setErrors((p) => ({ ...p, doctorId: '' }));
@@ -182,18 +205,16 @@ export function ScheduleModal({
 
         {/* Working Hours */}
         <div className="grid grid-cols-2 gap-4">
-          <Input
-            type="time"
+          <TimeInput
             label="เวลาเริ่มออกตรวจ *"
             value={startTime}
-            onChange={(e) => setStartTime(e.target.value)}
+            onChange={setStartTime}
             error={errors.startTime}
           />
-          <Input
-            type="time"
+          <TimeInput
             label="เวลาสิ้นสุดตรวจ *"
             value={endTime}
-            onChange={(e) => setEndTime(e.target.value)}
+            onChange={setEndTime}
             error={errors.endTime}
           />
         </div>
@@ -213,18 +234,16 @@ export function ScheduleModal({
 
           {hasBreak && (
             <div className="grid grid-cols-2 gap-4 animate-pop">
-              <Input
-                type="time"
+              <TimeInput
                 label="เริ่มพัก"
                 value={breakStart}
-                onChange={(e) => setBreakStart(e.target.value)}
+                onChange={setBreakStart}
                 error={errors.breakStart}
               />
-              <Input
-                type="time"
+              <TimeInput
                 label="สิ้นสุดพัก"
                 value={breakEnd}
-                onChange={(e) => setBreakEnd(e.target.value)}
+                onChange={setBreakEnd}
                 error={errors.breakEnd}
               />
             </div>

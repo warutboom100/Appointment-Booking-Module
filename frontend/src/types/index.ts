@@ -68,9 +68,11 @@ export interface Doctor {
   first_name: string;
   last_name: string;
   title?: string | null; // e.g. "นพ.", "พญ."
-  specialty?: string | null;
+  specialization?: string | null;
+  license_no?: string | null;
   room_number?: string | null;
   phone?: string | null;
+  email?: string | null;
   is_active: boolean;
   department_name?: string;
   created_at: string;
@@ -150,6 +152,14 @@ export interface ScheduleOverride {
   reason?: string | null;
   created_at: string;
   updated_at: string;
+
+  // Joined doctor & department fields
+  doctor_first_name?: string;
+  doctor_last_name?: string;
+  doctor_title?: string;
+  doctor_specialization?: string;
+  department_name?: string;
+  department_id?: string;
 }
 
 // === Appointment (Core) ===
@@ -160,6 +170,7 @@ export type AppointmentStatus =
   | 'in_progress'
   | 'completed'
   | 'cancelled'
+  | 'no_show'
   | 'rescheduled';
 
 export interface Appointment {

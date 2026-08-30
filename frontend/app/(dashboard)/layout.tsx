@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Navbar } from '@/components/layout/Navbar';
+import { BookingModal } from '@/components/appointments/BookingModal';
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -39,11 +40,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
         {/* Main Content Area */}
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <Navbar onToggleMobileMenu={() => setMobileMenuOpen(true)} />
+          <Navbar
+            onToggleMobileMenu={() => setMobileMenuOpen(true)}
+            onOpenBooking={() => setBookingModalOpen(true)}
+          />
           <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
             <div className="max-w-7xl mx-auto">{children}</div>
           </main>
         </div>
+
+        {/* Global Booking Modal */}
+        <BookingModal
+          isOpen={bookingModalOpen}
+          onClose={() => setBookingModalOpen(false)}
+        />
       </div>
     </AuthGuard>
   );

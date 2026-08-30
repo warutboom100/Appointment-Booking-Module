@@ -31,9 +31,13 @@ const STATUS_CONFIGS: Record<AppointmentStatus, StatusConfig> = {
     label: 'ยกเลิก (Cancelled)',
     variant: 'rose',
   },
+  no_show: {
+    label: 'ไม่มาตามนัด (No-show)',
+    variant: 'neutral',
+  },
   rescheduled: {
     label: 'เลื่อนนัด (Rescheduled)',
-    variant: 'neutral',
+    variant: 'purple',
   },
 };
 

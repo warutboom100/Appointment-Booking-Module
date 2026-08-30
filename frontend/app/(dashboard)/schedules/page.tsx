@@ -6,6 +6,7 @@ import { useDoctors } from '@/hooks/useDoctors';
 import { getDoctorSchedulesApi, getDoctorOverridesApi } from '@/api/schedule.api';
 import { MonthlyCalendarView } from '@/components/schedules/MonthlyCalendarView';
 import { WeeklyTimetableGrid } from '@/components/schedules/WeeklyTimetableGrid';
+import { OverridesListTable } from '@/components/schedules/OverridesListTable';
 import { ScheduleModal } from '@/components/schedules/ScheduleModal';
 import { OverrideModal } from '@/components/schedules/OverrideModal';
 import { Button } from '@/components/ui/Button';
@@ -16,18 +17,23 @@ import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
 import type { DoctorSchedule, ScheduleOverride } from '@/types';
 
 export default function SchedulesPage() {
-  const [viewMode, setViewMode] = useState<'calendar' | 'weekly'>('calendar');
+  const [viewMode, setViewMode] = useState<'calendar' | 'weekly' | 'overrides'>('calendar');
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
 
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
-  const [overrideDateParam, setOverrideDateParam] = useState<string>('');
+  const [scheduleToEdit, setScheduleToEdit] = useState<DoctorSchedule | null>(null);
 
-  const { data: departments = [], isLoading: isDeptLoading } = useDepartments();
-  const { data: doctors = [], isLoading: isDoctorsLoading } = useDoctors(
-    selectedDeptId || undefined,
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [overrideToEdit, setOverrideToEdit] = useState<ScheduleOverride | null>(null);
+  const [overrideDateParam, setOverrideDateParam] = useState<string>('');
+  const { data: deptResponse, isLoading: isDeptLoading } = useDepartments({ limit: 100 });
+  const departments = deptResponse?.data || [];
+  const { data: doctorsResponse, isLoading: isDoctorsLoading } = useDoctors(
+    selectedDeptId ? { department_id: selectedDeptId } : undefined
   );
+
+  const doctors = doctorsResponse?.data || [];
 
   // Map of doctorId -> schedules & doctorId -> overrides
   const [allSchedules, setAllSchedules] = useState<Record<string, DoctorSchedule[]>>({});
@@ -90,6 +96,7 @@ export default function SchedulesPage() {
             variant="outline"
             size="md"
             onClick={() => {
+              setOverrideToEdit(null);
               setOverrideDateParam('');
               setIsOverrideModalOpen(true);
             }}
@@ -100,7 +107,10 @@ export default function SchedulesPage() {
           <Button
             variant="primary"
             size="md"
-            onClick={() => setIsScheduleModalOpen(true)}
+            onClick={() => {
+              setScheduleToEdit(null);
+              setIsScheduleModalOpen(true);
+            }}
             leftIcon={
               <svg
                 width="16"
@@ -117,7 +127,7 @@ export default function SchedulesPage() {
               </svg>
             }
           >
-            + เพิ่มตารางเวรประจำ
+            เพิ่มตารางเวรประจำ
           </Button>
         </div>
       </div>
@@ -125,42 +135,47 @@ export default function SchedulesPage() {
       {/* Filter & View Mode Bar */}
       <Card variant="glass" className="p-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          {/* Department and Doctor Filters */}
+          {/* Department and Doctor Filters (only for calendar and weekly views) */}
           <div className="flex flex-wrap items-center gap-3 flex-1">
-            <div className="w-full sm:w-48">
-              <Select
-                value={selectedDeptId}
-                onChange={(e) => {
-                  setSelectedDeptId(e.target.value);
-                  setSelectedDoctorId('');
-                }}
-                options={[
-                  { value: '', label: 'ทุกแผนก (All Clinics)' },
-                  ...departments.map((d) => ({ value: d.id, label: d.name })),
-                ]}
-              />
-            </div>
+            {viewMode !== 'overrides' && (
+              <>
+                <div className="w-full sm:w-48">
+                  <Select
+                    value={selectedDeptId}
+                    onChange={(e) => {
+                      setSelectedDeptId(e.target.value);
+                      setSelectedDoctorId('');
+                    }}
+                    options={[
+                      { value: '', label: 'ทุกแผนก (All Clinics)' },
+                      ...departments.map((d) => ({ value: d.id, label: d.name })),
+                    ]}
+                  />
+                </div>
 
-            <div className="w-full sm:w-56">
-              <Select
-                value={selectedDoctorId}
-                onChange={(e) => setSelectedDoctorId(e.target.value)}
-                options={[
-                  { value: '', label: 'แพทย์ทุกท่าน (All Doctors)' },
-                  ...doctors.map((d) => ({
-                    value: d.id,
-                    label: `${d.title || ''} ${d.first_name} ${d.last_name}`,
-                  })),
-                ]}
-              />
-            </div>
+                <div className="w-full sm:w-56">
+                  <Select
+                    value={selectedDoctorId}
+                    onChange={(e) => setSelectedDoctorId(e.target.value)}
+                    options={[
+                      { value: '', label: 'แพทย์ทุกท่าน (All Doctors)' },
+                      ...doctors.map((d) => ({
+                        value: d.id,
+                        label: `${d.title || ''} ${d.first_name} ${d.last_name}`,
+                      })),
+                    ]}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           {/* Apple Segmented View Toggle */}
-          <SegmentedControl<'calendar' | 'weekly'>
+          <SegmentedControl<'calendar' | 'weekly' | 'overrides'>
             options={[
               { value: 'calendar', label: '📅 ปฏิทินรายเดือน' },
               { value: 'weekly', label: '📋 ตารางเวรประจำ' },
+              { value: 'overrides', label: '🏖️ วันหยุด & เวรพิเศษ' },
             ]}
             value={viewMode}
             onChange={(val) => setViewMode(val)}
@@ -180,33 +195,68 @@ export default function SchedulesPage() {
           allSchedules={allSchedules}
           allOverrides={allOverrides}
           onAddOverrideForDate={(date) => {
+            setOverrideToEdit(null);
             setOverrideDateParam(date);
             setIsOverrideModalOpen(true);
           }}
+          onEditOverride={(override) => {
+            setOverrideToEdit(override);
+            setIsOverrideModalOpen(true);
+          }}
+          onSuccess={fetchDoctorData}
         />
-      ) : (
+      ) : viewMode === 'weekly' ? (
         <WeeklyTimetableGrid
           doctors={displayDoctors}
           allSchedules={allSchedules}
+          onEditSchedule={(schedule) => {
+            setScheduleToEdit(schedule);
+            setIsScheduleModalOpen(true);
+          }}
+        />
+      ) : (
+        <OverridesListTable
+          doctors={doctors}
+          departments={departments}
+          allOverrides={allOverrides}
+          onEditOverride={(override) => {
+            setOverrideToEdit(override);
+            setIsOverrideModalOpen(true);
+          }}
+          onOpenCreateModal={() => {
+            setOverrideToEdit(null);
+            setOverrideDateParam('');
+            setIsOverrideModalOpen(true);
+          }}
+          onSuccess={fetchDoctorData}
         />
       )}
 
       {/* Schedule Modal */}
       <ScheduleModal
         isOpen={isScheduleModalOpen}
-        onClose={() => setIsScheduleModalOpen(false)}
+        onClose={() => {
+          setIsScheduleModalOpen(false);
+          setScheduleToEdit(null);
+        }}
         doctors={doctors}
         selectedDoctorId={selectedDoctorId || undefined}
+        scheduleToEdit={scheduleToEdit}
         onSuccess={fetchDoctorData}
       />
 
       {/* Override Modal */}
       <OverrideModal
         isOpen={isOverrideModalOpen}
-        onClose={() => setIsOverrideModalOpen(false)}
+        onClose={() => {
+          setIsOverrideModalOpen(false);
+          setOverrideToEdit(null);
+          setOverrideDateParam('');
+        }}
         doctors={doctors}
         selectedDoctorId={selectedDoctorId || undefined}
         defaultDate={overrideDateParam || undefined}
+        overrideToEdit={overrideToEdit}
         onSuccess={fetchDoctorData}
       />
     </div>

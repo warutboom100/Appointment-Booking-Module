@@ -57,6 +57,26 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    label: 'ตารางตรวจแพทย์ (Schedules)',
+    href: '/schedules',
+    roles: ['admin', 'receptionist', 'doctor'],
+    icon: (active) => (
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={active ? '2.25' : '1.75'}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="10" />
+        <polyline points="12 6 12 12 16 14" />
+      </svg>
+    ),
+  },
+  {
     label: 'ข้อมูลผู้ป่วย (Patients)',
     href: '/patients',
     roles: ['admin', 'receptionist', 'doctor'],
@@ -79,9 +99,9 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
-    label: 'ตารางตรวจแพทย์ (Schedules)',
-    href: '/schedules',
-    roles: ['admin', 'receptionist', 'doctor'],
+    label: 'ข้อมูลแพทย์ (Doctors)',
+    href: '/doctors',
+    roles: ['admin', 'receptionist'],
     icon: (active) => (
       <svg
         width="18"
@@ -93,14 +113,15 @@ const NAV_ITEMS: NavItem[] = [
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <circle cx="12" cy="12" r="10" />
-        <polyline points="12 6 12 12 16 14" />
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <polyline points="16 11 18 13 22 9" />
       </svg>
     ),
   },
   {
-    label: 'ตั้งค่าระบบ (Master Data)',
-    href: '/master-data',
+    label: 'ข้อมูลแผนก (Departments)',
+    href: '/departments',
     roles: ['admin'],
     icon: (active) => (
       <svg
@@ -113,8 +134,8 @@ const NAV_ITEMS: NavItem[] = [
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
-        <circle cx="12" cy="12" r="3" />
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </svg>
     ),
   },
@@ -180,16 +201,14 @@ export function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ease-out no-underline ${
-                  isActive
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ease-out no-underline ${isActive
                     ? 'bg-teal-50 text-teal-700 dark:bg-teal-950/50 dark:text-teal-300 font-semibold shadow-2xs'
                     : 'text-[var(--muted)] hover:text-[var(--fg)] hover:bg-[var(--surface-subtle)]'
-                }`}
+                  }`}
               >
                 <div
-                  className={`flex items-center justify-center ${
-                    isActive ? 'text-teal-600 dark:text-teal-400' : 'text-current'
-                  }`}
+                  className={`flex items-center justify-center ${isActive ? 'text-teal-600 dark:text-teal-400' : 'text-current'
+                    }`}
                 >
                   {item.icon(isActive)}
                 </div>
@@ -214,8 +233,8 @@ export function Sidebar({
               {user?.role === 'admin'
                 ? 'ผู้ดูแลระบบ (Admin)'
                 : user?.role === 'doctor'
-                ? 'แพทย์ (Doctor)'
-                : 'เจ้าหน้าที่ (Staff)'}
+                  ? 'แพทย์ (Doctor)'
+                  : 'เจ้าหน้าที่ (Staff)'}
             </span>
           </div>
         </div>

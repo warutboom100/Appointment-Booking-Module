@@ -1,9 +1,18 @@
 import { api } from './client';
-import type { Department, ApiResponse } from '@/types';
+import type { Department, ApiResponse, PaginatedResponse } from '@/types';
 
-export async function getDepartmentsApi(): Promise<Department[]> {
-  const { data } = await api.get<ApiResponse<Department[]>>('/departments');
-  return data.data;
+export interface GetDepartmentsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  is_active?: boolean;
+}
+
+export async function getDepartmentsApi(params?: GetDepartmentsParams): Promise<PaginatedResponse<Department>> {
+  const { data } = await api.get<PaginatedResponse<Department>>('/departments', {
+    params,
+  });
+  return data;
 }
 
 export async function getDepartmentByIdApi(id: string): Promise<Department> {

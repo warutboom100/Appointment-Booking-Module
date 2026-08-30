@@ -11,10 +11,17 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   '/appointments': { title: 'รายการนัดหมาย', subtitle: 'จัดการข้อมูลคิวนัดหมายและสถานะ' },
   '/patients': { title: 'เวชระเบียนผู้ป่วย', subtitle: 'ค้นหาและจัดการประวัติคนไข้' },
   '/schedules': { title: 'ตารางตรวจแพทย์', subtitle: 'ปฏิทินตารางออกตรวจและวันหยุดแพทย์' },
-  '/master-data': { title: 'ตั้งค่าระบบ', subtitle: 'จัดการข้อมูลแผนก แพทย์ และประเภทการนัดหมาย' },
+  '/doctors': { title: 'จัดการข้อมูลแพทย์', subtitle: 'ลงทะเบียนและจัดการประวัติแพทย์' },
+  '/departments': { title: 'ข้อมูลแผนก', subtitle: 'จัดการข้อมูลแผนกในโรงพยาบาล' },
 };
 
-export function Navbar({ onToggleMobileMenu }: { onToggleMobileMenu?: () => void }) {
+export function Navbar({
+  onToggleMobileMenu,
+  onOpenBooking,
+}: {
+  onToggleMobileMenu?: () => void;
+  onOpenBooking?: () => void;
+}) {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const [time, setTime] = useState<string>('');
@@ -93,8 +100,32 @@ export function Navbar({ onToggleMobileMenu }: { onToggleMobileMenu?: () => void
         </div>
       </div>
 
-      {/* Right Tools: Bangkok Clock, Role Pill, Theme Switcher */}
+      {/* Right Tools: Bangkok Clock, Quick Booking Button, Role Pill, Theme Switcher */}
       <div className="flex items-center gap-3">
+        {/* Quick Booking Button (Admin / Receptionist) */}
+        {onOpenBooking && user?.role !== 'doctor' && (
+          <button
+            type="button"
+            onClick={onOpenBooking}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.97] text-white text-xs font-semibold shadow-xs transition-all cursor-pointer"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span className="hidden sm:inline">จองนัดหมาย</span>
+          </button>
+        )}
+
         {/* Bangkok Real-time Clock */}
         <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--surface-subtle)] border border-[var(--border-subtle)] text-xs text-[var(--muted)] font-mono">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />

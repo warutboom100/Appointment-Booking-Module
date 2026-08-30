@@ -3,9 +3,10 @@ import { authenticate } from '../../middleware/authenticate';
 import { authorize } from '../../middleware/authorize';
 import * as controller from './override.controller';
 
-// Router for /api/v1/overrides/:id
+// Router for /api/v1/overrides
 export const overrideRouter = Router();
 overrideRouter.use(authenticate);
+overrideRouter.get('/', controller.getAll);
 overrideRouter.get('/:id', controller.getById);
 overrideRouter.patch('/:id', authorize('admin'), controller.update);
 overrideRouter.delete('/:id', authorize('admin'), controller.remove);

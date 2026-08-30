@@ -11,6 +11,8 @@ export interface MonthlyCalendarViewProps {
   allSchedules: Record<string, DoctorSchedule[]>;
   allOverrides: Record<string, ScheduleOverride[]>;
   onAddOverrideForDate?: (date: string) => void;
+  onEditOverride?: (override: ScheduleOverride) => void;
+  onSuccess?: () => void;
 }
 
 const MONTH_NAMES_THAI = [
@@ -35,6 +37,8 @@ export function MonthlyCalendarView({
   allSchedules,
   allOverrides,
   onAddOverrideForDate,
+  onEditOverride,
+  onSuccess,
 }: MonthlyCalendarViewProps) {
   const today = new Date();
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -251,6 +255,8 @@ export function MonthlyCalendarView({
               onAddOverrideForDate(selectedDayInfo.date);
             }
           }}
+          onEditOverride={onEditOverride}
+          onSuccess={onSuccess}
         />
       )}
     </div>

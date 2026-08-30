@@ -143,7 +143,7 @@ export default function PatientsPage() {
             </svg>
           }
         >
-          + ลงทะเบียนคนไข้ใหม่
+          ลงทะเบียนคนไข้ใหม่
         </Button>
       </div>
 
@@ -209,7 +209,7 @@ export default function PatientsPage() {
             <Pagination
               meta={meta}
               onPageChange={(p) => setPage(p)}
-              onLimitChange={() => {}}
+              onLimitChange={() => { }}
             />
           </div>
         )}

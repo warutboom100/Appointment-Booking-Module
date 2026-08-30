@@ -1,11 +1,19 @@
 import { api } from './client';
-import type { Doctor, ApiResponse } from '@/types';
+import type { Doctor, ApiResponse, PaginatedResponse } from '@/types';
 
-export async function getDoctorsApi(departmentId?: string): Promise<Doctor[]> {
-  const { data } = await api.get<ApiResponse<Doctor[]>>('/doctors', {
-    params: departmentId ? { department_id: departmentId } : undefined,
+export interface GetDoctorsParams {
+  page?: number;
+  limit?: number;
+  department_id?: string;
+  search?: string;
+  is_active?: boolean;
+}
+
+export async function getDoctorsApi(params?: GetDoctorsParams): Promise<PaginatedResponse<Doctor>> {
+  const { data } = await api.get<PaginatedResponse<Doctor>>('/doctors', {
+    params,
   });
-  return data.data;
+  return data;
 }
 
 export async function getDoctorByIdApi(id: string): Promise<Doctor> {

@@ -96,3 +96,20 @@ export async function updateDoctorOverrideApi(
 export async function deleteDoctorOverrideApi(overrideId: string): Promise<void> {
   await api.delete(`/overrides/${overrideId}`);
 }
+
+export interface GetOverridesParams {
+  doctor_id?: string;
+  department_id?: string;
+  from_date?: string;
+  to_date?: string;
+  is_available?: boolean;
+}
+
+export async function getAllOverridesApi(
+  params?: GetOverridesParams,
+): Promise<ScheduleOverride[]> {
+  const { data } = await api.get<ApiResponse<ScheduleOverride[]>>('/overrides', {
+    params,
+  });
+  return data.data;
+}

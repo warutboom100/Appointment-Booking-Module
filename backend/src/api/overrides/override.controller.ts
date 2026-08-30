@@ -9,6 +9,12 @@ import {
   updateOverrideSchema,
 } from './override.schema';
 
+export async function getAll(req: Request, res: Response) {
+  const query = overrideQuerySchema.parse(req.query);
+  const overrides = await service.findAll(query);
+  ok(res, overrides);
+}
+
 export async function getByDoctor(req: Request, res: Response) {
   const { doctorId } = doctorIdParamSchema.parse(req.params);
   const query = overrideQuerySchema.parse(req.query);
