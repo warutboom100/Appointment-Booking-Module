@@ -1,0 +1,85 @@
+import type { Gender } from '@/types';
+
+/**
+ * Format date in Thai locale e.g. "15 ม.ค. 2567"
+ */
+export function formatDate(value: string | Date | undefined | null): string {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+
+  return d.toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Bangkok',
+  });
+}
+
+/**
+ * Format full date and time e.g. "15 ม.ค. 2567 14:30 น."
+ */
+export function formatDateTime(value: string | Date | undefined | null): string {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return String(value);
+
+  return `${d.toLocaleDateString('th-TH', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Asia/Bangkok',
+  })} ${d.toLocaleTimeString('th-TH', {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Asia/Bangkok',
+  })} น.`;
+}
+
+/**
+ * Calculate age from Date of Birth (YYYY-MM-DD)
+ */
+export function calculateAge(dobString: string | undefined | null): number | null {
+  if (!dobString) return null;
+  const dob = new Date(dobString);
+  if (isNaN(dob.getTime())) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const m = today.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+    age--;
+  }
+  return Math.max(0, age);
+}
+
+/**
+ * Format gender to Thai label
+ */
+export function genderLabel(gender: Gender | string | undefined | null): string {
+  switch (gender) {
+    case 'male':
+      return 'ชาย';
+    case 'female':
+      return 'หญิง';
+    case 'other':
+      return 'อื่นๆ';
+    default:
+      return '-';
+  }
+}
+
+/**
+ * Format phone number e.g. 0812345678 -> 081-234-5678
+ */
+export function formatPhone(phone: string | undefined | null): string {
+  if (!phone) return '-';
+  const cleaned = phone.replace(/\D/g, '');
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 3)}-${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+  }
+  if (cleaned.length === 9) {
+    return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 5)}-${cleaned.slice(5)}`;
+  }
+  return phone;
+}
