@@ -1,37 +1,25 @@
 import { z } from 'zod';
 import { isBreakInsideWorkingHours, timeToMinutes } from '../schedules/schedule.fn';
 
-const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
 const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+const optionalTimeField = z
+  .string()
+  .regex(timeRegex, 'รูปแบบเวลาต้องเป็น HH:MM เช่น 12:00')
+  .transform((val) => val.slice(0, 5))
+  .optional()
+  .nullable()
+  .or(z.literal(''));
 
 export const createOverrideSchema = z
   .object({
     override_date: z.string().regex(dateRegex, 'รูปแบบวันที่ต้องเป็น YYYY-MM-DD'),
     is_available: z.boolean(),
-    start_time: z
-      .string()
-      .regex(timeRegex, 'รูปแบบเวลาเริ่มต้องเป็น HH:MM เช่น 09:00')
-      .optional()
-      .nullable()
-      .or(z.literal('')),
-    end_time: z
-      .string()
-      .regex(timeRegex, 'รูปแบบเวลาสิ้นสุดต้องเป็น HH:MM เช่น 17:00')
-      .optional()
-      .nullable()
-      .or(z.literal('')),
-    break_start: z
-      .string()
-      .regex(timeRegex, 'รูปแบบเวลาเริ่มพักต้องเป็น HH:MM เช่น 12:00')
-      .optional()
-      .nullable()
-      .or(z.literal('')),
-    break_end: z
-      .string()
-      .regex(timeRegex, 'รูปแบบเวลาสิ้นสุดพักต้องเป็น HH:MM เช่น 13:00')
-      .optional()
-      .nullable()
-      .or(z.literal('')),
+    start_time: optionalTimeField,
+    end_time: optionalTimeField,
+    break_start: optionalTimeField,
+    break_end: optionalTimeField,
     reason: z.string().trim().max(200, 'เหตุผลต้องไม่เกิน 200 ตัวอักษร').optional().nullable(),
   })
   .refine(
@@ -77,30 +65,10 @@ export const createOverrideSchema = z
 export const updateOverrideSchema = z.object({
   override_date: z.string().regex(dateRegex, 'รูปแบบวันที่ต้องเป็น YYYY-MM-DD').optional(),
   is_available: z.boolean().optional(),
-  start_time: z
-    .string()
-    .regex(timeRegex, 'รูปแบบเวลาเริ่มต้องเป็น HH:MM')
-    .optional()
-    .nullable()
-    .or(z.literal('')),
-  end_time: z
-    .string()
-    .regex(timeRegex, 'รูปแบบเวลาสิ้นสุดต้องเป็น HH:MM')
-    .optional()
-    .nullable()
-    .or(z.literal('')),
-  break_start: z
-    .string()
-    .regex(timeRegex, 'รูปแบบเวลาเริ่มพักต้องเป็น HH:MM')
-    .optional()
-    .nullable()
-    .or(z.literal('')),
-  break_end: z
-    .string()
-    .regex(timeRegex, 'รูปแบบเวลาสิ้นสุดพักต้องเป็น HH:MM')
-    .optional()
-    .nullable()
-    .or(z.literal('')),
+  start_time: optionalTimeField,
+  end_time: optionalTimeField,
+  break_start: optionalTimeField,
+  break_end: optionalTimeField,
   reason: z.string().trim().max(200, 'เหตุผลต้องไม่เกิน 200 ตัวอักษร').optional().nullable(),
 });
 

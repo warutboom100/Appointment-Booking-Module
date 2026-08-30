@@ -25,14 +25,18 @@ export class AppError extends Error {
 }
 
 export const errors = {
-  validation: (message = 'ข้อมูลที่ส่งมาไม่ถูกต้อง') =>
-    new AppError(400, 'VALIDATION_ERROR', message),
-  unauthorized: (message = 'ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบ') =>
-    new AppError(401, 'UNAUTHORIZED', message),
-  forbidden: (message = 'ไม่มีสิทธิ์เข้าถึงข้อมูลหรือดำเนินการนี้') =>
-    new AppError(403, 'FORBIDDEN', message),
-  notFound: (message = 'ไม่พบข้อมูลที่ต้องการ') => new AppError(404, 'NOT_FOUND', message),
-  duplicate: (message = 'ข้อมูลนี้มีอยู่แล้วในระบบ') => new AppError(409, 'DUPLICATE', message),
-  conflict: (message = 'เกิดข้อขัดแย้งของข้อมูล') => new AppError(409, 'CONFLICT', message),
-  internal: (message = 'เกิดข้อผิดพลาดภายในระบบ') => new AppError(500, 'INTERNAL_ERROR', message),
+  validation: (message = 'ข้อมูลที่ส่งมาไม่ถูกต้อง', code = 'VALIDATION_ERROR') =>
+    new AppError(400, code, message),
+  unauthorized: (message = 'ไม่ได้รับอนุญาต กรุณาเข้าสู่ระบบ', code = 'UNAUTHORIZED') =>
+    new AppError(401, code, message),
+  forbidden: (message = 'ไม่มีสิทธิ์เข้าถึงข้อมูลหรือดำเนินการนี้', code = 'FORBIDDEN') =>
+    new AppError(403, code, message),
+  notFound: (message = 'ไม่พบข้อมูลที่ต้องการ', code = 'NOT_FOUND') =>
+    new AppError(404, code, message),
+  duplicate: (message = 'ข้อมูลนี้มีอยู่แล้วในระบบ', code = 'DUPLICATE') =>
+    new AppError(409, code, message),
+  conflict: (message = 'เกิดข้อขัดแย้งของข้อมูล', code = 'CONFLICT') =>
+    new AppError(409, code, message),
+  internal: (message = 'เกิดข้อผิดพลาดภายในระบบ', code = 'INTERNAL_ERROR') =>
+    new AppError(500, code, message),
 };

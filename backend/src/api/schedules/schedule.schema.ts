@@ -1,7 +1,20 @@
 import { z } from 'zod';
 import { isBreakInsideWorkingHours, timeToMinutes } from './schedule.fn';
 
-const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)(:[0-5]\d)?$/;
+
+const timeField = z
+  .string()
+  .regex(timeRegex, 'รูปแบบเวลาต้องเป็น HH:MM เช่น 09:00')
+  .transform((val) => val.slice(0, 5));
+
+const optionalTimeField = z
+  .string()
+  .regex(timeRegex, 'รูปแบบเวลาต้องเป็น HH:MM เช่น 12:00')
+  .transform((val) => val.slice(0, 5))
+  .optional()
+  .nullable()
+  .or(z.literal(''));
 
 export const createScheduleSchema = z
   .object({
@@ -10,20 +23,10 @@ export const createScheduleSchema = z
       .int('วันในสัปดาห์ต้องเป็นจำนวนเต็ม')
       .min(0, 'วันในสัปดาห์ต้องอยู่ระหว่าง 0 (อาทิตย์) ถึง 6 (เสาร์)')
       .max(6, 'วันในสัปดาห์ต้องอยู่ระหว่าง 0 (อาทิตย์) ถึง 6 (เสาร์)'),
-    start_time: z.string().regex(timeRegex, 'รูปแบบเวลาเริ่มต้องเป็น HH:MM เช่น 09:00'),
-    end_time: z.string().regex(timeRegex, 'รูปแบบเวลาสิ้นสุดต้องเป็น HH:MM เช่น 12:00'),
-    break_start: z
-      .string()
-      .regex(timeRegex, 'รูปแบบเวลาเริ่มพักต้องเป็น HH:MM เช่น 12:00')
-      .optional()
-      .nullable()
-      .or(z.literal('')),
-    break_end: z
-      .string()
-      .regex(timeRegex, 'รูปแบบเวลาสิ้นสุดพักต้องเป็น HH:MM เช่น 13:00')
-      .optional()
-      .nullable()
-      .or(z.literal('')),
+    start_time: timeField,
+    end_time: timeField,
+    break_start: optionalTimeField,
+    break_end: optionalTimeField,
     is_available: z.boolean().default(true),
     max_appointments: z.coerce
       .number()
@@ -60,20 +63,10 @@ export const updateScheduleSchema = z
       .min(0)
       .max(6)
       .optional(),
-    start_time: z.string().regex(timeRegex, 'รูปแบบเวลาเริ่มต้องเป็น HH:MM').optional(),
-    end_time: z.string().regex(timeRegex, 'รูปแบบเวลาสิ้นสุดต้องเป็น HH:MM').optional(),
-    break_start: z
-      .string()
-      .regex(timeRegex, 'รูปแบบเวลาเริ่มพักต้องเป็น HH:MM')
-      .optional()
-      .nullable()
-      .or(z.literal('')),
-    break_end: z
-      .string()
-      .regex(timeRegex, 'รูปแบบเวลาสิ้นสุดพักต้องเป็น HH:MM')
-      .optional()
-      .nullable()
-      .or(z.literal('')),
+    start_time: timeField.optional(),
+    end_time: timeField.optional(),
+    break_start: optionalTimeField,
+    break_end: optionalTimeField,
     is_available: z.boolean().optional(),
     max_appointments: z.coerce.number().int().min(1).optional().nullable(),
   });

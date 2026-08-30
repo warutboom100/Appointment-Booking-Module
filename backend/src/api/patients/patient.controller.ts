@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import { created, list, ok } from '../../config/response';
 import * as service from './patient.service';
+import * as appointmentService from '../appointments/appointment.service';
+import { appointmentQuerySchema } from '../appointments/appointment.schema';
 import {
   createPatientSchema,
   patientIdParamSchema,
@@ -37,4 +39,11 @@ export async function remove(req: Request, res: Response) {
   const { id } = patientIdParamSchema.parse(req.params);
   const patient = await service.softDelete(id);
   ok(res, patient);
+}
+
+export async function getAppointments(req: Request, res: Response) {
+  const { id } = patientIdParamSchema.parse(req.params);
+  const query = appointmentQuerySchema.parse(req.query);
+  const result = await appointmentService.findByPatientId(id, query);
+  list(res, result.items, result.meta);
 }
