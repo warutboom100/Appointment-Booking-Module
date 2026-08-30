@@ -358,6 +358,39 @@ describe('Doctor Schedules Module Integration Tests', () => {
     });
   });
 
+  describe('GET /api/v1/schedules', () => {
+    it('should list all doctor schedules in bulk with doctor and department details', async () => {
+      await request(app)
+        .post(`/api/v1/doctors/${doctorAId}/schedules`)
+        .set('Authorization', 'ApiKey testapi')
+        .set('X-Role', 'admin')
+        .send({
+          day_of_week: 1,
+          start_time: '09:00',
+          end_time: '16:00',
+        });
+
+      await request(app)
+        .post(`/api/v1/doctors/${doctorBId}/schedules`)
+        .set('Authorization', 'ApiKey testapi')
+        .set('X-Role', 'admin')
+        .send({
+          day_of_week: 2,
+          start_time: '10:00',
+          end_time: '17:00',
+        });
+
+      const res = await request(app)
+        .get('/api/v1/schedules')
+        .set('Authorization', 'ApiKey testapi');
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(2);
+      expect(res.body.data[0]).toHaveProperty('doctor_first_name');
+      expect(res.body.data[0]).toHaveProperty('department_name');
+    });
+  });
+
   describe('DELETE /api/v1/schedules/:id', () => {
     it('should delete schedule block', async () => {
       const createRes = await request(app)

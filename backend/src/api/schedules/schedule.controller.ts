@@ -9,6 +9,12 @@ import {
   updateScheduleSchema,
 } from './schedule.schema';
 
+export async function list(req: Request, res: Response) {
+  const query = scheduleQuerySchema.parse(req.query);
+  const schedules = await service.findAll(query);
+  ok(res, schedules);
+}
+
 export async function getByDoctor(req: Request, res: Response) {
   const { doctorId } = doctorIdParamSchema.parse(req.params);
   const query = scheduleQuerySchema.parse(req.query);

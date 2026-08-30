@@ -16,6 +16,22 @@ export interface CreateSchedulePayload {
   max_appointments?: number | null;
 }
 
+export interface GetSchedulesParams {
+  doctor_id?: string;
+  department_id?: string;
+  day_of_week?: number;
+  is_available?: boolean;
+}
+
+export async function getAllSchedulesApi(
+  params?: GetSchedulesParams,
+): Promise<DoctorSchedule[]> {
+  const { data } = await api.get<ApiResponse<DoctorSchedule[]>>('/schedules', {
+    params,
+  });
+  return data.data;
+}
+
 export async function getDoctorSchedulesApi(doctorId: string): Promise<DoctorSchedule[]> {
   const { data } = await api.get<ApiResponse<DoctorSchedule[]>>(
     `/doctors/${doctorId}/schedules`,

@@ -31,7 +31,8 @@ export interface ScheduleOverride {
 export async function findAll(query: OverrideQuery): Promise<ScheduleOverride[]> {
   const baseQuery = db('schedule_overrides as so')
     .leftJoin('doctors as d', 'so.doctor_id', 'd.id')
-    .leftJoin('departments as dep', 'd.department_id', 'dep.id');
+    .leftJoin('departments as dep', 'd.department_id', 'dep.id')
+    .where('d.is_active', true);
 
   if (query.doctor_id) {
     baseQuery.where('so.doctor_id', query.doctor_id);

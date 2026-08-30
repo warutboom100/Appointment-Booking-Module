@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useDoctors } from '@/hooks/useDoctors';
-import { getDoctorSchedulesApi, getDoctorOverridesApi } from '@/api/schedule.api';
+import { useAllSchedules, useAllOverrides } from '@/hooks/useSchedules';
 import { MonthlyCalendarView } from '@/components/schedules/MonthlyCalendarView';
 import { WeeklyTimetableGrid } from '@/components/schedules/WeeklyTimetableGrid';
 import { OverridesListTable } from '@/components/schedules/OverridesListTable';
@@ -27,56 +27,68 @@ export default function SchedulesPage() {
   const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
   const [overrideToEdit, setOverrideToEdit] = useState<ScheduleOverride | null>(null);
   const [overrideDateParam, setOverrideDateParam] = useState<string>('');
+
+  // 1. Fetch departments
   const { data: deptResponse, isLoading: isDeptLoading } = useDepartments({ limit: 100 });
   const departments = deptResponse?.data || [];
-  const { data: doctorsResponse, isLoading: isDoctorsLoading } = useDoctors(
-    selectedDeptId ? { department_id: selectedDeptId } : undefined
+
+  // 2. Fetch active doctors
+  const { data: doctorsResponse, isLoading: isDoctorsLoading } = useDoctors({
+    ...(selectedDeptId ? { department_id: selectedDeptId } : {}),
+    is_active: true,
+    limit: 100,
+  });
+  const doctors = useMemo(
+    () => (doctorsResponse?.data || []).filter((d) => d.is_active),
+    [doctorsResponse?.data],
   );
 
-  const doctors = doctorsResponse?.data || [];
+  // 3. Bulk fetch schedules & overrides in 2 clean queries
+  const {
+    data: rawSchedules = [],
+    isLoading: isSchedulesLoading,
+    refetch: refetchSchedules,
+  } = useAllSchedules(selectedDeptId ? { department_id: selectedDeptId } : undefined);
 
-  // Map of doctorId -> schedules & doctorId -> overrides
-  const [allSchedules, setAllSchedules] = useState<Record<string, DoctorSchedule[]>>({});
-  const [allOverrides, setAllOverrides] = useState<Record<string, ScheduleOverride[]>>({});
-  const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
+  const {
+    data: rawOverrides = [],
+    isLoading: isOverridesLoading,
+    refetch: refetchOverrides,
+  } = useAllOverrides(selectedDeptId ? { department_id: selectedDeptId } : undefined);
 
-  const fetchDoctorData = async () => {
-    if (doctors.length === 0) return;
-    setIsLoadingSchedules(true);
-    try {
-      const schedMap: Record<string, DoctorSchedule[]> = {};
-      const overMap: Record<string, ScheduleOverride[]> = {};
-
-      const promises = doctors.map(async (doc) => {
-        try {
-          const [schedules, overrides] = await Promise.all([
-            getDoctorSchedulesApi(doc.id),
-            getDoctorOverridesApi(doc.id),
-          ]);
-          schedMap[doc.id] = schedules;
-          overMap[doc.id] = overrides;
-        } catch {
-          schedMap[doc.id] = [];
-          overMap[doc.id] = [];
-        }
-      });
-
-      await Promise.all(promises);
-      setAllSchedules(schedMap);
-      setAllOverrides(overMap);
-    } finally {
-      setIsLoadingSchedules(false);
-    }
+  const handleRefreshAll = () => {
+    refetchSchedules();
+    refetchOverrides();
   };
 
-  useEffect(() => {
-    fetchDoctorData();
-  }, [doctors]);
+  // Group schedules by doctor_id
+  const allSchedules = useMemo(() => {
+    const map: Record<string, DoctorSchedule[]> = {};
+    rawSchedules.forEach((sch) => {
+      if (!map[sch.doctor_id]) map[sch.doctor_id] = [];
+      map[sch.doctor_id].push(sch);
+    });
+    return map;
+  }, [rawSchedules]);
+
+  // Group overrides by doctor_id
+  const allOverrides = useMemo(() => {
+    const map: Record<string, ScheduleOverride[]> = {};
+    rawOverrides.forEach((ov) => {
+      if (!map[ov.doctor_id]) map[ov.doctor_id] = [];
+      map[ov.doctor_id].push(ov);
+    });
+    return map;
+  }, [rawOverrides]);
+
+  const isLoadingSchedules = isSchedulesLoading || isOverridesLoading;
 
   // Filtered doctors based on doctor select dropdown
-  const displayDoctors = selectedDoctorId
-    ? doctors.filter((d) => d.id === selectedDoctorId)
-    : doctors;
+  const displayDoctors = useMemo(() => {
+    return selectedDoctorId
+      ? doctors.filter((d) => d.id === selectedDoctorId)
+      : doctors;
+  }, [doctors, selectedDoctorId]);
 
   return (
     <div className="flex flex-col gap-6 stagger">
@@ -203,7 +215,7 @@ export default function SchedulesPage() {
             setOverrideToEdit(override);
             setIsOverrideModalOpen(true);
           }}
-          onSuccess={fetchDoctorData}
+          onSuccess={handleRefreshAll}
         />
       ) : viewMode === 'weekly' ? (
         <WeeklyTimetableGrid
@@ -228,7 +240,7 @@ export default function SchedulesPage() {
             setOverrideDateParam('');
             setIsOverrideModalOpen(true);
           }}
-          onSuccess={fetchDoctorData}
+          onSuccess={handleRefreshAll}
         />
       )}
 
@@ -242,7 +254,7 @@ export default function SchedulesPage() {
         doctors={doctors}
         selectedDoctorId={selectedDoctorId || undefined}
         scheduleToEdit={scheduleToEdit}
-        onSuccess={fetchDoctorData}
+        onSuccess={handleRefreshAll}
       />
 
       {/* Override Modal */}
@@ -257,7 +269,7 @@ export default function SchedulesPage() {
         selectedDoctorId={selectedDoctorId || undefined}
         defaultDate={overrideDateParam || undefined}
         overrideToEdit={overrideToEdit}
-        onSuccess={fetchDoctorData}
+        onSuccess={handleRefreshAll}
       />
     </div>
   );

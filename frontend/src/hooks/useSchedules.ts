@@ -1,19 +1,41 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getDoctorSchedulesApi,
+  getAllSchedulesApi,
   createDoctorScheduleApi,
   updateDoctorScheduleApi,
   deleteDoctorScheduleApi,
   getDoctorOverridesApi,
+  getAllOverridesApi,
   createDoctorOverrideApi,
   updateDoctorOverrideApi,
   deleteDoctorOverrideApi,
   type CreateSchedulePayload,
   type CreateOverridePayload,
+  type GetSchedulesParams,
+  type GetOverridesParams,
 } from '@/api/schedule.api';
 
 export const SCHEDULES_KEY = 'doctor-schedules';
 export const OVERRIDES_KEY = 'doctor-overrides';
+
+// === All Schedules (Bulk) ===
+export function useAllSchedules(params?: GetSchedulesParams) {
+  return useQuery({
+    queryKey: [SCHEDULES_KEY, 'all', params],
+    queryFn: () => getAllSchedulesApi(params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// === All Overrides (Bulk) ===
+export function useAllOverrides(params?: GetOverridesParams) {
+  return useQuery({
+    queryKey: [OVERRIDES_KEY, 'all', params],
+    queryFn: () => getAllOverridesApi(params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
 
 // === Weekly Recurring Schedules ===
 export function useDoctorSchedules(doctorId: string) {

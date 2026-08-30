@@ -24,6 +24,49 @@ export interface DoctorSchedule {
   max_appointments: number | null;
   created_at: Date;
   updated_at: Date;
+
+  // Joined doctor & department fields
+  doctor_first_name?: string;
+  doctor_last_name?: string;
+  doctor_title?: string;
+  department_id?: string;
+  department_name?: string;
+}
+
+export async function findAll(query: ScheduleQuery): Promise<DoctorSchedule[]> {
+  const baseQuery = db('doctor_schedules as ds')
+    .leftJoin('doctors as d', 'ds.doctor_id', 'd.id')
+    .leftJoin('departments as dep', 'd.department_id', 'dep.id')
+    .where('d.is_active', true);
+
+  if (query.doctor_id) {
+    baseQuery.where('ds.doctor_id', query.doctor_id);
+  }
+
+  if (query.department_id) {
+    baseQuery.where('d.department_id', query.department_id);
+  }
+
+  if (typeof query.day_of_week === 'number') {
+    baseQuery.where('ds.day_of_week', query.day_of_week);
+  }
+
+  if (typeof query.is_available === 'boolean') {
+    baseQuery.where('ds.is_available', query.is_available);
+  }
+
+  const rows = await baseQuery
+    .select(
+      'ds.*',
+      'd.first_name as doctor_first_name',
+      'd.last_name as doctor_last_name',
+      'd.department_id as department_id',
+      'dep.name as department_name',
+    )
+    .orderBy('ds.day_of_week', 'asc')
+    .orderBy('ds.start_time', 'asc');
+
+  return rows;
 }
 
 export async function findByDoctor(

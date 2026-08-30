@@ -6,6 +6,7 @@ import * as controller from './schedule.controller';
 // Router for /api/v1/schedules/:id
 export const scheduleRouter = Router();
 scheduleRouter.use(authenticate);
+scheduleRouter.get('/', controller.list);
 scheduleRouter.get('/:id', controller.getById);
 scheduleRouter.patch('/:id', authorize('admin'), controller.update);
 scheduleRouter.delete('/:id', authorize('admin'), controller.remove);

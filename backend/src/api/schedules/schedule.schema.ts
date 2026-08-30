@@ -80,6 +80,8 @@ export const scheduleIdParamSchema = z.object({
 });
 
 export const scheduleQuerySchema = z.object({
+  doctor_id: z.string().uuid('รูปแบบ Doctor ID ไม่ถูกต้อง').optional(),
+  department_id: z.string().uuid('รูปแบบ Department ID ไม่ถูกต้อง').optional(),
   day_of_week: z.coerce.number().int().min(0).max(6).optional(),
   is_available: z
     .enum(['true', 'false'])
