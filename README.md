@@ -295,7 +295,7 @@ npm run dev
 
 ---
 
-## 👥 บัญชีผู้ใช้ทดสอบ (Demo Accounts)
+## 👥 บัญชีผู้ใช้ทดสอบ (Demo Accounts) แนะนำตรวจด้วย admin
 
 | Username | Password | Role | สิทธิ์การใช้งาน |
 |---|---|---|---|
@@ -461,21 +461,6 @@ npm run test:ui
 - **`patients.test.ts` (16 tests)**: การสร้างเลข HN อัตโนมัติ, การค้นหา และการดึงประวัตินัดหมาย
 - **`doctors.test.ts` (17 tests)**, **`departments.test.ts` (15 tests)**, **`appointment-types.test.ts` (14 tests)**: การทำ CRUD และการเชื่อมโยงข้อมูล
 - **`auth.test.ts` (12 tests)** & **`dashboard.test.ts` (6 tests)**: การตรวจสอบ Token, สิทธิ์ RBAC และสถิติ Dashboard
-
----
-
-## 📝 ข้อสมมติฐานและข้อจำกัด (Assumptions & Limitations)
-
-### ข้อสมมติฐาน (Assumptions)
-1. **Timezone**: ข้อมูลวันที่และเวลาทั้งหมดอ้างอิงบนเขตเวลา `Asia/Bangkok` (UTC+7)
-2. **Duration-based Slots**: การแบ่งช่วงเวลาจะขยับทีละเท่ากับความยาวของประเภทนัดหมายนั้นๆ เพื่อความกระชับและไม่เกิดเศษเวลาเหลื่อมกัน
-3. **Staff-Mediated Booking**: ผู้ใช้งานระบบใน Phase นี้คือบุคลากรโรงพยาบาลที่ทำการจองให้ผู้ป่วย ณ จุดบริการเวชระเบียน
-4. **Immediate Slot Release**: เมื่อนัดหมายถูก `cancelled` หรือ `rescheduled` จะคืน Slot ว่างให้ระบบทันที
-
-### ข้อจำกัดและสิ่งที่สามารถพัฒนาต่อยอด (Roadmap)
-- **Patient Self-Service Portal**: พัฒนาหน้าเว็บ/แอปพลิเคชันสำหรับให้คนไข้เข้าสู่ระบบผ่าน OTP เพื่อเลือกแพทย์และทำการจองคิวด้วยตนเอง
-- **Automated Notifications**: เชื่อมต่อระบบแจ้งเตือนใบนัดและคิวตรวจผ่าน SMS หรือ LINE Official Account
-- **Multi-Hospital Tenancy**: ขยายระบบให้รองรับการบริหารจัดการหลายโรงพยาบาล/เครือข่ายโรงพยาบาลในฐานข้อมูลเดียว
 
 ---
 
