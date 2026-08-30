@@ -1,16 +1,17 @@
 import axios from 'axios';
 import type { ApiError } from '@/types';
-import { getAccessToken, setAccessToken, clearAllAuth } from './storage';
+import { getAccessToken, setAccessToken, clearAllAuth } from '@/lib/storage';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
 
-// ─── Axios instance ───
+// ─── Base Axios Instance ───
 export const api = axios.create({
   baseURL: BASE_URL,
   headers: { 'Content-Type': 'application/json' },
   withCredentials: true,
 });
 
+// ─── Request Interceptor: Attach Access Token ───
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) {
@@ -18,6 +19,8 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// ─── Response Interceptor: Auto Refresh on 401 ───
 let isRefreshing = false;
 let failedQueue: Array<{
   resolve: (token: string) => void;
@@ -40,7 +43,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
     const url = original.url ?? '';
-    if (url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/refresh')) {
+    if (
+      url.includes('/auth/login') ||
+      url.includes('/auth/register') ||
+      url.includes('/auth/refresh')
+    ) {
       return Promise.reject(error);
     }
     if (isRefreshing) {
@@ -77,12 +84,12 @@ api.interceptors.response.use(
   },
 );
 
-// ─── Error helper ───
+// ─── Error Helper ───
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
     const body = error.response?.data as ApiError | undefined;
-    return body?.error?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+    return body?.error?.message ?? 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
   }
   if (error instanceof Error) return error.message;
-  return 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+  return 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง';
 }

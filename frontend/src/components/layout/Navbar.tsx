@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { useAuthStore } from '@/features/auth/auth.store';
+import { useAuthStore } from '@/stores/auth.store';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Badge } from '@/components/ui/Badge';
 

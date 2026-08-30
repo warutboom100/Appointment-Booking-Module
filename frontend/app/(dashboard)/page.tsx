@@ -1,6 +1,6 @@
 'use client';
 
-import { useAuthStore } from '@/features/auth/auth.store';
+import { useAuthStore } from '@/stores/auth.store';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';

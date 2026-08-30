@@ -1,4 +1,4 @@
-import { api } from '@/lib/api';
+import { api } from './client';
 import type {
   Patient,
   CreatePatientInput,
@@ -13,7 +13,7 @@ export interface GetPatientsParams {
   limit?: number;
 }
 
-export async function getPatients(
+export async function getPatientsApi(
   params: GetPatientsParams = {},
 ): Promise<PaginatedResponse<Patient>> {
   const { data } = await api.get<PaginatedResponse<Patient>>('/patients', {
@@ -22,17 +22,25 @@ export async function getPatients(
   return data;
 }
 
-export async function getPatientById(id: string): Promise<Patient> {
+export async function getPatientByIdApi(id: string): Promise<Patient> {
   const { data } = await api.get<ApiResponse<Patient>>(`/patients/${id}`);
   return data.data;
 }
 
-export async function createPatient(input: CreatePatientInput): Promise<Patient> {
+export async function createPatientApi(input: CreatePatientInput): Promise<Patient> {
   const { data } = await api.post<ApiResponse<Patient>>('/patients', input);
   return data.data;
 }
 
-export async function getPatientAppointmentHistory(
+export async function updatePatientApi(
+  id: string,
+  input: Partial<CreatePatientInput>,
+): Promise<Patient> {
+  const { data } = await api.patch<ApiResponse<Patient>>(`/patients/${id}`, input);
+  return data.data;
+}
+
+export async function getPatientAppointmentHistoryApi(
   patientId: string,
 ): Promise<Appointment[]> {
   const { data } = await api.get<ApiResponse<Appointment[]>>(

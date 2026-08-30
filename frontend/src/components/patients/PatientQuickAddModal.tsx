@@ -6,9 +6,9 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { Button } from '@/components/ui/Button';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { useCreatePatient } from '../patient.hooks';
+import { useCreatePatient } from '@/hooks/usePatients';
 import { useToast } from '@/providers/ToastProvider';
-import { getErrorMessage } from '@/lib/api';
+import { getErrorMessage } from '@/api/client';
 import type { Patient, Gender, CreatePatientInput } from '@/types';
 
 export interface PatientQuickAddModalProps {

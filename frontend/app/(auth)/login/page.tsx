@@ -3,7 +3,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore, getErrorMessage } from '@/features/auth/auth.store';
+import { useAuthStore, getErrorMessage } from '@/stores/auth.store';
 import { Logo } from '@/components/Logo';
 
 export default function LoginPage() {

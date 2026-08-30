@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePatients } from '@/features/patients/patient.hooks';
-import { PatientQuickAddModal } from '@/features/patients/components/PatientQuickAddModal';
+import { usePatients } from '@/hooks/usePatients';
+import { PatientQuickAddModal } from '@/components/patients/PatientQuickAddModal';
 import { Table, type Column } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';

@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import {
-  getPatients,
-  getPatientById,
-  createPatient,
-  getPatientAppointmentHistory,
+  getPatientsApi,
+  getPatientByIdApi,
+  createPatientApi,
+  updatePatientApi,
+  getPatientAppointmentHistoryApi,
   type GetPatientsParams,
-} from './patient.api';
+} from '@/api/patient.api';
 import type { CreatePatientInput } from '@/types';
 
 export const PATIENTS_QUERY_KEY = 'patients';
@@ -13,7 +14,7 @@ export const PATIENTS_QUERY_KEY = 'patients';
 export function usePatients(params: GetPatientsParams = {}) {
   return useQuery({
     queryKey: [PATIENTS_QUERY_KEY, params],
-    queryFn: () => getPatients(params),
+    queryFn: () => getPatientsApi(params),
     placeholderData: keepPreviousData,
   });
 }
@@ -21,7 +22,7 @@ export function usePatients(params: GetPatientsParams = {}) {
 export function usePatient(id: string) {
   return useQuery({
     queryKey: [PATIENTS_QUERY_KEY, id],
-    queryFn: () => getPatientById(id),
+    queryFn: () => getPatientByIdApi(id),
     enabled: !!id,
   });
 }
@@ -29,7 +30,7 @@ export function usePatient(id: string) {
 export function usePatientHistory(patientId: string) {
   return useQuery({
     queryKey: [PATIENTS_QUERY_KEY, patientId, 'appointments'],
-    queryFn: () => getPatientAppointmentHistory(patientId),
+    queryFn: () => getPatientAppointmentHistoryApi(patientId),
     enabled: !!patientId,
   });
 }
@@ -38,8 +39,21 @@ export function useCreatePatient() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: CreatePatientInput) => createPatient(input),
+    mutationFn: (input: CreatePatientInput) => createPatientApi(input),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PATIENTS_QUERY_KEY] });
+    },
+  });
+}
+
+export function useUpdatePatient() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Partial<CreatePatientInput> }) =>
+      updatePatientApi(id, input),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [PATIENTS_QUERY_KEY, variables.id] });
       queryClient.invalidateQueries({ queryKey: [PATIENTS_QUERY_KEY] });
     },
   });

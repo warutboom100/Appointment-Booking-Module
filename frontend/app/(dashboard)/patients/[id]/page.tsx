@@ -2,8 +2,8 @@
 
 import { use } from 'react';
 import Link from 'next/link';
-import { usePatient, usePatientHistory } from '@/features/patients/patient.hooks';
-import { PatientHistoryTimeline } from '@/features/patients/components/PatientHistoryTimeline';
+import { usePatient, usePatientHistory } from '@/hooks/usePatients';
+import { PatientHistoryTimeline } from '@/components/patients/PatientHistoryTimeline';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';

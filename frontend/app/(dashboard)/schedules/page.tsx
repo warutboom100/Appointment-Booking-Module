@@ -1,0 +1,214 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useDepartments } from '@/hooks/useDepartments';
+import { useDoctors } from '@/hooks/useDoctors';
+import { getDoctorSchedulesApi, getDoctorOverridesApi } from '@/api/schedule.api';
+import { MonthlyCalendarView } from '@/components/schedules/MonthlyCalendarView';
+import { WeeklyTimetableGrid } from '@/components/schedules/WeeklyTimetableGrid';
+import { ScheduleModal } from '@/components/schedules/ScheduleModal';
+import { OverrideModal } from '@/components/schedules/OverrideModal';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { Card } from '@/components/ui/Card';
+import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
+import type { DoctorSchedule, ScheduleOverride } from '@/types';
+
+export default function SchedulesPage() {
+  const [viewMode, setViewMode] = useState<'calendar' | 'weekly'>('calendar');
+  const [selectedDeptId, setSelectedDeptId] = useState<string>('');
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
+
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isOverrideModalOpen, setIsOverrideModalOpen] = useState(false);
+  const [overrideDateParam, setOverrideDateParam] = useState<string>('');
+
+  const { data: departments = [], isLoading: isDeptLoading } = useDepartments();
+  const { data: doctors = [], isLoading: isDoctorsLoading } = useDoctors(
+    selectedDeptId || undefined,
+  );
+
+  // Map of doctorId -> schedules & doctorId -> overrides
+  const [allSchedules, setAllSchedules] = useState<Record<string, DoctorSchedule[]>>({});
+  const [allOverrides, setAllOverrides] = useState<Record<string, ScheduleOverride[]>>({});
+  const [isLoadingSchedules, setIsLoadingSchedules] = useState(false);
+
+  const fetchDoctorData = async () => {
+    if (doctors.length === 0) return;
+    setIsLoadingSchedules(true);
+    try {
+      const schedMap: Record<string, DoctorSchedule[]> = {};
+      const overMap: Record<string, ScheduleOverride[]> = {};
+
+      const promises = doctors.map(async (doc) => {
+        try {
+          const [schedules, overrides] = await Promise.all([
+            getDoctorSchedulesApi(doc.id),
+            getDoctorOverridesApi(doc.id),
+          ]);
+          schedMap[doc.id] = schedules;
+          overMap[doc.id] = overrides;
+        } catch {
+          schedMap[doc.id] = [];
+          overMap[doc.id] = [];
+        }
+      });
+
+      await Promise.all(promises);
+      setAllSchedules(schedMap);
+      setAllOverrides(overMap);
+    } finally {
+      setIsLoadingSchedules(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDoctorData();
+  }, [doctors]);
+
+  // Filtered doctors based on doctor select dropdown
+  const displayDoctors = selectedDoctorId
+    ? doctors.filter((d) => d.id === selectedDoctorId)
+    : doctors;
+
+  return (
+    <div className="flex flex-col gap-6 stagger">
+      {/* Header & Main Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--fg)]">
+            ตารางออกตรวจแพทย์ (Doctor Schedules)
+          </h2>
+          <p className="text-xs sm:text-sm text-[var(--muted)] mt-0.5">
+            จัดการตารางออกตรวจประจำสัปดาห์ ปฏิทินรายเดือน และบันทึกวันหยุดแพทย์
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => {
+              setOverrideDateParam('');
+              setIsOverrideModalOpen(true);
+            }}
+          >
+            🏖️ บันทึกวันหยุด / เวรพิเศษ
+          </Button>
+
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => setIsScheduleModalOpen(true)}
+            leftIcon={
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            }
+          >
+            + เพิ่มตารางเวรประจำ
+          </Button>
+        </div>
+      </div>
+
+      {/* Filter & View Mode Bar */}
+      <Card variant="glass" className="p-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Department and Doctor Filters */}
+          <div className="flex flex-wrap items-center gap-3 flex-1">
+            <div className="w-full sm:w-48">
+              <Select
+                value={selectedDeptId}
+                onChange={(e) => {
+                  setSelectedDeptId(e.target.value);
+                  setSelectedDoctorId('');
+                }}
+                options={[
+                  { value: '', label: 'ทุกแผนก (All Clinics)' },
+                  ...departments.map((d) => ({ value: d.id, label: d.name })),
+                ]}
+              />
+            </div>
+
+            <div className="w-full sm:w-56">
+              <Select
+                value={selectedDoctorId}
+                onChange={(e) => setSelectedDoctorId(e.target.value)}
+                options={[
+                  { value: '', label: 'แพทย์ทุกท่าน (All Doctors)' },
+                  ...doctors.map((d) => ({
+                    value: d.id,
+                    label: `${d.title || ''} ${d.first_name} ${d.last_name}`,
+                  })),
+                ]}
+              />
+            </div>
+          </div>
+
+          {/* Apple Segmented View Toggle */}
+          <SegmentedControl<'calendar' | 'weekly'>
+            options={[
+              { value: 'calendar', label: '📅 ปฏิทินรายเดือน' },
+              { value: 'weekly', label: '📋 ตารางเวรประจำ' },
+            ]}
+            value={viewMode}
+            onChange={(val) => setViewMode(val)}
+          />
+        </div>
+      </Card>
+
+      {/* Content View */}
+      {isDeptLoading || isDoctorsLoading || isLoadingSchedules ? (
+        <div className="py-20 flex flex-col items-center justify-center gap-3">
+          <LoadingSpinner size="lg" />
+          <span className="text-xs text-[var(--muted)]">กำลังดึงข้อมูลตารางออกตรวจแพทย์...</span>
+        </div>
+      ) : viewMode === 'calendar' ? (
+        <MonthlyCalendarView
+          doctors={displayDoctors}
+          allSchedules={allSchedules}
+          allOverrides={allOverrides}
+          onAddOverrideForDate={(date) => {
+            setOverrideDateParam(date);
+            setIsOverrideModalOpen(true);
+          }}
+        />
+      ) : (
+        <WeeklyTimetableGrid
+          doctors={displayDoctors}
+          allSchedules={allSchedules}
+        />
+      )}
+
+      {/* Schedule Modal */}
+      <ScheduleModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        doctors={doctors}
+        selectedDoctorId={selectedDoctorId || undefined}
+        onSuccess={fetchDoctorData}
+      />
+
+      {/* Override Modal */}
+      <OverrideModal
+        isOpen={isOverrideModalOpen}
+        onClose={() => setIsOverrideModalOpen(false)}
+        doctors={doctors}
+        selectedDoctorId={selectedDoctorId || undefined}
+        defaultDate={overrideDateParam || undefined}
+        onSuccess={fetchDoctorData}
+      />
+    </div>
+  );
+}

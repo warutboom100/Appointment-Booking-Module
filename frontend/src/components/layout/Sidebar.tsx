@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/features/auth/auth.store';
+import { useAuthStore } from '@/stores/auth.store';
 import { Logo } from '@/components/Logo';
 
 interface NavItem {

@@ -2,7 +2,8 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from './auth.store';
+import { useAuthStore } from '@/stores/auth.store';
+import { LoadingSpinner } from '@/components/feedback/LoadingSpinner';
 
 export function AuthGuard({ children }: { children: ReactNode }) {
   const { isAuthenticated, isHydrated, hydrate } = useAuthStore();
@@ -18,11 +19,10 @@ export function AuthGuard({ children }: { children: ReactNode }) {
     }
   }, [isHydrated, isAuthenticated, router]);
 
-
   if (!isHydrated) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-8 h-8 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" />
+      <div className="flex items-center justify-center min-h-screen bg-[var(--bg)]">
+        <LoadingSpinner size="lg" />
       </div>
     );
   }

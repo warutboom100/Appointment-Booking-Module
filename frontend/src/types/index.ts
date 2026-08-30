@@ -132,8 +132,8 @@ export interface DoctorSchedule {
   end_time: string; // HH:MM
   break_start?: string | null;
   break_end?: string | null;
-  max_patients?: number | null;
-  is_active: boolean;
+  is_available: boolean;
+  max_appointments?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -145,6 +145,8 @@ export interface ScheduleOverride {
   is_available: boolean;
   start_time?: string | null;
   end_time?: string | null;
+  break_start?: string | null;
+  break_end?: string | null;
   reason?: string | null;
   created_at: string;
   updated_at: string;

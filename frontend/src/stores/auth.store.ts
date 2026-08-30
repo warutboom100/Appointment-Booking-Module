@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { SafeUser, LoginResponse, RegisterInput } from '@/types';
-import { api, getErrorMessage } from '@/lib/api';
+import type { SafeUser, RegisterInput } from '@/types';
+import { loginApi, registerApi, logoutApi, getErrorMessage } from '@/api';
 import {
   getAccessToken,
   setAccessToken,
@@ -40,25 +40,21 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   login: async (username, password) => {
-    const { data } = await api.post<{ data: LoginResponse }>('/auth/login', {
-      username,
-      password,
-    });
-
-    const { accessToken, user } = data.data;
+    const { accessToken, user } = await loginApi(username, password);
     setAccessToken(accessToken);
     setStoredUser(user);
     set({ user, isAuthenticated: true });
   },
 
   register: async (input) => {
-    await api.post<{ data: SafeUser }>('/auth/register', input);
+    await registerApi(input);
   },
 
   logout: async () => {
     try {
-      await api.post('/auth/logout');
+      await logoutApi();
     } catch {
+      // Ignore errors on logout
     }
     clearAllAuth();
     set({ user: null, isAuthenticated: false });
