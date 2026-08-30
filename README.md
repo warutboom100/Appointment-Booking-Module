@@ -4,30 +4,6 @@
 
 ---
 
-## 📌 สารบัญ
-
-- [ภาพรวมโปรเจกต์](#-ภาพรวมโปรเจกต์)
-- [ฟีเจอร์หลัก](#-ฟีเจอร์หลัก)
-- [Business Logic & การออกแบบระบบ](#-business-logic--การออกแบบระบบ)
-  - [1. ประเภทการนัดหมายและข้อสมมติฐานเรื่องระยะเวลา (Appointment Types & Duration)](#1-ประเภทการนัดหมายและข้อสมมติฐานเรื่องระยะเวลา-appointment-types--duration)
-  - [2. ขั้นตอนการตรวจสอบการจอง (11-Step Validation)](#2-ขั้นตอนการตรวจสอบการจอง-11-step-validation)
-  - [3. การป้องกัน Race Condition (Concurrency Control)](#3-การป้องกัน-race-condition-concurrency-control)
-  - [4. สถานะนัดหมายและผลกระทบต่อ Slot ว่าง (Status Lifecycle & Availability Impact)](#4-สถานะนัดหมายและผลกระทบต่อ-slot-ว่าง-status-lifecycle--availability-impact)
-  - [5. นโยบายยกเลิกและเลื่อนนัด (Cancel & Reschedule)](#5-นโยบายยกเลิกและเลื่อนนัด-cancel--reschedule)
-- [Tech Stack](#-tech-stack)
-- [โครงสร้างโปรเจกต์](#-โครงสร้างโปรเจกต์)
-- [เริ่มต้นใช้งานด้วย Docker (แนะนำ)](#-เริ่มต้นใช้งานด้วย-docker-แนะนำ)
-- [การติดตั้งแบบ Local Development](#-การติดตั้งแบบ-local-development)
-- [บัญชีผู้ใช้ทดสอบ (Demo Accounts)](#-บัญชีผู้ใช้ทดสอบ-demo-accounts)
-- [REST API Endpoints & สิทธิ์การใช้งาน](#-rest-api-endpoints--สิทธิ์การใช้งาน)
-- [Database Schema & Storage Architecture](#-database-schema--storage-architecture)
-  - [Entity Relationship Diagram (ERD)](#entity-relationship-diagram-erd)
-  - [เหตุผลในการเลือกใช้ Relational Database (PostgreSQL) และ Knex.js](#เหตุผลในการเลือกใช้-relational-database-postgresql-และ-knexjs)
-- [การทดสอบระบบ (Testing)](#-การทดสอบระบบ-testing)
-- [ภาพตัวอย่างหน้าจอ (Screenshots)](#-ภาพตัวอย่างหน้าจอ-screenshots)
-
----
-
 ## 📖 ภาพรวมโปรเจกต์
 
 ระบบนี้พัฒนาขึ้นเพื่อแก้ปัญหาความซับซ้อนในการนัดหมายผู้ป่วยนอกของโรงพยาบาล โดยมีจุดเด่นสำคัญ:
@@ -591,26 +567,13 @@ erDiagram
 ในการพัฒนาระบบนัดหมายโรงพยาบาล (Hospital Information System) การเลือกใช้ **PostgreSQL (Relational Database)** ร่วมกับ **Knex.js** มีเหตุผลทางเทคนิคและสถาปัตยกรรมที่สำคัญดังนี้:
 
 1. **การรับประกันความถูกต้องตามหลัก ACID และการล็อกแถวข้อมูล (Pessimistic Row Locking)**:
-   - ปัญหาที่ร้ายแรงที่สุดของระบบนัดหมายคือ **"การจองเวลาเดียวกันซ้ำ (Double Booking)"** เมื่อมีเจ้าหน้าที่หลายคนกดยืนยันการจองพร้อมกัน
-   - PostgreSQL รองรับ **ACID Transactions** และคำสั่ง `SELECT ... FOR UPDATE` ทำให้เราสามารถล็อกแถวของแพทย์คนนั้นในระดับ Database Engine ได้ทันที คำขออื่นที่เข้ามาพร้อมกันจะถูกจัดคิวรออย่างเป็นระเบียบ และได้รับแจ้งเตือน `409 Conflict (SLOT_TAKEN)` เมื่อพบว่าเวลานั้นถูกจองไปแล้ว
-   - ฐานข้อมูลประเภท NoSQL / Document Store หรือ In-memory ส่วนใหญ่ทำงานแบบ Eventual Consistency ซึ่งจัดการ Transactional Row Lock บนช่วงเวลาที่ซ้อนทับกันได้ยากและเสี่ยงต่อข้อมูลคลาดเคลื่อน
-
 2. **การสร้างรหัส Hospital Number (HN) ต่อเนื่องด้วย PostgreSQL Sequence**:
-   - การลงทะเบียนผู้ป่วยต้องการรหัส HN แบบเรียงลำดับไม่กระโดด (`HN-000001`, `HN-000002` ...)
-   - การใช้ `patient_hn_seq` ของ PostgreSQL รับประกันความเป็น Atomic และไม่มีทางซ้ำซ้อน แม้จะมีการลงทะเบียนคนไข้ใหม่เข้ามาพร้อมๆ กันจากหลายเคาน์เตอร์
-
 3. **ความสัมพันธ์ของข้อมูลที่ซับซ้อนและการรักษา Referential Integrity**:
-   - ระบบนี้มีความสัมพันธ์เชื่อมโยงหลายชั้น: `Users` ➔ `Doctors` ➔ `DoctorSchedules` ➔ `ScheduleOverrides` ➔ `Appointments` ➔ `Patients` ➔ `AppointmentTypes`
-   - Relational Database ช่วยบังคับใช้ Foreign Key Constraints และป้องกันการเกิด Orphan Records (เช่น ป้องกันการลบข้อมูลแพทย์ที่มีนัดหมายอยู่)
-
 4. **การควบคุมความถูกต้องของข้อมูลเวลาด้วย Data Types และ CHECK Constraints**:
-   - PostgreSQL มี Data Type เฉพาะสำหรับเวลาอย่าง `DATE` และ `TIME` พร้อมรองรับ `CHECK (end_time > start_time)`, `CHECK (duration_minutes > 0)` และ `CHECK (break_end > break_start)` ทำให้ข้อมูลผิดเงื่อนไขถูกปฏิเสธตั้งแต่ระดับ Database Layer
-
 5. **เหตุผลที่เลือกใช้ Knex.js แทน ORM ขนาดใหญ่**:
-   - **Full SQL Control**: สามารถเขียนคำสั่งล็อกแถว `forUpdate()`, จัดการ Transaction `trx`, และ JOIN ข้อมูลหลายตารางได้อย่างแม่นยำ 100%
+   - **Full SQL Control**: สามารถเขียนคำสั่งล็อกแถว `forUpdate()`, จัดการ Transaction `trx`, และ JOIN ข้อมูลหลายตารางได้อย่างแม่นยำ
    - **Type Safety & Lightweight**: ทำงานร่วมกับ TypeScript ได้สะอาด ไม่มี Performance Overhead หรือ N+1 Query ที่ควบคุมยากเหมือน Full ORM
    - **Deterministic Test Environment**: จัดการ Database Migration และ Seed Data ได้สะดวกรวดเร็ว รองรับการทำ `TRUNCATE TABLE ... CASCADE` ระหว่างรัน Automated Integration Tests
-
 ---
 
 ## 🧪 การทดสอบระบบ (Testing)
@@ -641,11 +604,3 @@ npm run test:ui
 - **หน้าจองนัดหมาย (Booking Wizard)**: ขั้นตอนการเลือกผู้ป่วย ➔ เลือกแพทย์และวันที่ ➔ เลือก Slot เวลาว่างแบบ Interactive ➔ ยืนยันข้อมูล
 - **หน้าจัดการตารางตรวจแพทย์ (Schedules & Overrides)**: ปฏิทินแสดงตารางเวรประจำสัปดาห์ และการบันทึกวันลา/คลินิกพิเศษ
 - **หน้าประวัติผู้ป่วย (Patient History)**: ทะเบียนคนไข้ ค้นหาด่วน และ Timeline ประวัติการนัดหมายย้อนหลัง
-
----
-
-## 👨‍💻 ผู้พัฒนา
-
-- **ผู้พัฒนา**: วรุฒม์ (Warut)
-- **โปรเจกต์**: Hospital Outpatient Appointment Booking Module
-- **Repository**: [GitHub — warutboom100/Appointment-Booking-Module](https://github.com/warutboom100/Appointment-Booking-Module)
