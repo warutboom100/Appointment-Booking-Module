@@ -3,6 +3,84 @@
 ระบบจัดการนัดหมายผู้ป่วยนอกแบบ Full-stack สำหรับเจ้าหน้าที่โรงพยาบาล (Receptionist/Admin) รองรับตารางเวลาแพทย์แบบรายสัปดาห์และตารางยกเว้นรายวัน (Overrides), การคำนวณ Slot ว่างอัตโนมัติตามระยะเวลาของแต่ละประเภทนัดหมาย, การป้องกันการจองซ้อนด้วย Pessimistic Locking และการจัดการวงจรสถานะการนัดหมาย (Status Lifecycle)
 
 ---
+## 🚀 เริ่มต้นใช้งานด้วย Docker (แนะนำ)
+
+สั่งรันทั้งระบบ (PostgreSQL + Backend API + Frontend) ด้วยคำสั่งเดียว:
+
+```bash
+# 1. Clone โปรเจกต์
+git clone https://github.com/warutboom100/Appointment-Booking-Module.git
+cd Appointment-Booking-Module
+
+# 2. Build และ Start คอนเทนเนอร์
+docker compose up --build
+```
+
+เมื่อทำงานเสร็จสมบูรณ์ สามารถเข้าใช้งานได้ที่:
+- 🌐 **Frontend (Web App)**: [http://localhost:3000](http://localhost:3000)
+- 🔌 **Backend (REST API)**: [http://localhost:4000/api/v1](http://localhost:4000/api/v1)
+- 🗄 **PostgreSQL Database**: `localhost:5432` (`appointment_db`)
+
+*(ระบบจะรัน Migration และ Seed ข้อมูลเริ่มต้นให้โดยอัตโนมัติ)*
+
+---
+
+## 💻 การติดตั้งแบบ Local Development
+
+### ความต้องการของระบบ
+- **Node.js**: v20 ขึ้นไป
+- **PostgreSQL**: v16 ทำงานอยู่ที่ Local Port 5432
+
+### 1. ฝั่ง Backend
+
+```bash
+cd backend
+
+# ติดตั้ง Dependencies
+npm install
+
+# คัดลอกไฟล์ Environment
+cp .env.example .env
+
+# รัน Migration และ Seed ข้อมูล
+npm run migrate
+npm run seed
+
+# รัน Backend เซิร์ฟเวอร์
+npm run dev
+```
+*(Backend ทำงานที่ [http://localhost:4000](http://localhost:4000))*
+
+### 2. ฝั่ง Frontend
+
+```bash
+cd ../frontend
+
+# ติดตั้ง Dependencies
+npm install
+
+# คัดลอกไฟล์ Environment
+cp .env.example .env
+
+# รัน Next.js เซิร์ฟเวอร์
+npm run dev
+```
+*(Frontend ทำงานที่ [http://localhost:3000](http://localhost:3000))*
+
+---
+
+## 👥 บัญชีผู้ใช้ทดสอบ (Demo Accounts) แนะนำตรวจด้วย admin
+
+| Username | Password | Role | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `admin` | `password123` | `admin` | สิทธิ์สูงสุด จัดการ Master Data, หมอ, แผนก, ตารางตรวจ, ตั้งค่าระบบ |
+| `receptionist1` | `password123` | `receptionist` | เจ้าหน้าที่เวชระเบียน (สมหญิง) ลงทะเบียนคนไข้, จอง/เลื่อน/ยกเลิกนัด, เช็คอิน |
+| `receptionist2` | `password123` | `receptionist` | เจ้าหน้าที่เวชระเบียน (มานิต) |
+| `dr_somchai` | `password123` | `doctor` | แพทย์ (อายุรกรรม) ดูตารางตรวจ คิวคนไข้ และอัปเดตสถานะตรวจเสร็จ |
+| `dr_natthapong` | `password123` | `doctor` | แพทย์ (โรคหัวใจ) |
+| `dr_wipawan` | `password123` | `doctor` | แพทย์ (ออร์โธปิดิกส์) |
+
+---
 
 ## 📖 ภาพรวมโปรเจกต์
 
@@ -296,85 +374,6 @@ Appointment-Booking-Module/
 2. **`*.controller.ts`**: รับ Request, เรียกใช้ Validation, ส่งต่องานให้ Service และจัด Format Response
 3. **`*.service.ts`**: จัดการ Business Logic, เรียกใช้ Database Transaction และ Pessimistic Locking
 4. **`*.schema.ts`**: กำหนด Zod Schema สำหรับตรวจสอบ Request Body, Params และ Query String อย่างเข้มงวด
-
----
-
-## 🚀 เริ่มต้นใช้งานด้วย Docker (แนะนำ)
-
-สั่งรันทั้งระบบ (PostgreSQL + Backend API + Frontend) ด้วยคำสั่งเดียว:
-
-```bash
-# 1. Clone โปรเจกต์
-git clone https://github.com/warutboom100/Appointment-Booking-Module.git
-cd Appointment-Booking-Module
-
-# 2. Build และ Start คอนเทนเนอร์
-docker compose up --build
-```
-
-เมื่อทำงานเสร็จสมบูรณ์ สามารถเข้าใช้งานได้ที่:
-- 🌐 **Frontend (Web App)**: [http://localhost:3000](http://localhost:3000)
-- 🔌 **Backend (REST API)**: [http://localhost:4000/api/v1](http://localhost:4000/api/v1)
-- 🗄 **PostgreSQL Database**: `localhost:5432` (`appointment_db`)
-
-*(ระบบจะรัน Migration และ Seed ข้อมูลเริ่มต้นให้โดยอัตโนมัติ)*
-
----
-
-## 💻 การติดตั้งแบบ Local Development
-
-### ความต้องการของระบบ
-- **Node.js**: v20 ขึ้นไป
-- **PostgreSQL**: v16 ทำงานอยู่ที่ Local Port 5432
-
-### 1. ฝั่ง Backend
-
-```bash
-cd backend
-
-# ติดตั้ง Dependencies
-npm install
-
-# คัดลอกไฟล์ Environment
-cp .env.example .env
-
-# รัน Migration และ Seed ข้อมูล
-npm run migrate
-npm run seed
-
-# รัน Backend เซิร์ฟเวอร์
-npm run dev
-```
-*(Backend ทำงานที่ [http://localhost:4000](http://localhost:4000))*
-
-### 2. ฝั่ง Frontend
-
-```bash
-cd ../frontend
-
-# ติดตั้ง Dependencies
-npm install
-
-# คัดลอกไฟล์ Environment
-cp .env.example .env
-
-# รัน Next.js เซิร์ฟเวอร์
-npm run dev
-```
-*(Frontend ทำงานที่ [http://localhost:3000](http://localhost:3000))*
-
----
-
-## 👥 บัญชีผู้ใช้ทดสอบ (Demo Accounts) แนะนำตรวจด้วย admin
-
-| Username | Password | Role | สิทธิ์การใช้งาน |
-|---|---|---|---|
-| `admin` | `password123` | `admin` | สิทธิ์สูงสุด จัดการ Master Data, หมอ, แผนก, ตารางตรวจ, ตั้งค่าระบบ |
-| `receptionist1` | `password123` | `receptionist` | เจ้าหน้าที่เวชระเบียน (สมหญิง) ลงทะเบียนคนไข้, จอง/เลื่อน/ยกเลิกนัด, เช็คอิน |
-| `receptionist2` | `password123` | `receptionist` | เจ้าหน้าที่เวชระเบียน (มานิต) |
-| `dr_somchai` | `password123` | `doctor` | แพทย์ (อายุรกรรม) ดูตารางตรวจ คิวคนไข้ และอัปเดตสถานะตรวจเสร็จ |
-| `dr_natthapong` | `password123` | `doctor` | แพทย์ (โรคหัวใจ) |
-| `dr_wipawan` | `password123` | `doctor` | แพทย์ (ออร์โธปิดิกส์) |
 
 ---
 

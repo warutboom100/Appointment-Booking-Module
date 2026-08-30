@@ -18,5 +18,5 @@ COPY seeds ./seeds
 
 EXPOSE 4000
 
-# Auto-migrate then start the app
-CMD ["sh", "-c", "npx tsx src/knex/migrate.ts && npx tsx src/app.ts"]
+# Auto-migrate, seed initial mock data, then start the app
+CMD ["sh", "-c", "npx tsx src/knex/migrate.ts && npx tsx src/knex/seed.ts && npx tsx src/app.ts"]
