@@ -185,37 +185,141 @@ await knex.transaction(async (trx) => {
 
 ---
 
-## 📁 โครงสร้างโปรเจกต์
+## 📁 โครงสร้างโปรเจกต์ (Project Structure)
+
+โปรเจกต์จัดโครงสร้างแบบ Monorepo แบ่งออกเป็น `backend` (Express REST API) และ `frontend` (Next.js App Router):
 
 ```
 Appointment-Booking-Module/
-├── docker-compose.yml              # ตั้งค่ารัน Multi-container (DB, API, Web)
-├── .env.docker                     # Environment สำหรับ Docker Compose
-├── backend/
-│   ├── migrations/                 # ไฟล์ Migration ทั้ง 8 ตาราง
-│   ├── seeds/                      # ข้อมูลเริ่มต้นสำหรับทดสอบระบบ
+├── docker-compose.yml                      # Orchestration รัน 3 Services (db, backend, frontend)
+├── .env.docker                             # ค่า Environment Variables สำหรับรัน Docker Compose
+│
+├── backend/                                # ── Backend Service (Express 5 + TypeScript) ──
+│   ├── Dockerfile                          # Multi-stage Docker build สำหรับ Node.js
+│   ├── package.json & tsconfig.json        # Dependencies & TypeScript configuration
+│   ├── migrations/                         # Knex Database Migrations (8 ตารางตามลำดับ)
+│   │   ├── 001_create_users.ts             # ตาราง users + refresh_tokens
+│   │   ├── 002_create_departments.ts       # ตาราง departments
+│   │   ├── 003_create_doctors.ts           # ตาราง doctors (Foreign Key ไปยัง departments, users)
+│   │   ├── 004_create_patients.ts          # ตาราง patients + patient_hn_seq
+│   │   ├── 005_create_appointment_types.ts # ตาราง appointment_types (duration, color)
+│   │   ├── 006_create_doctor_schedules.ts  # ตาราง doctor_schedules (ตารางประจำสัปดาห์ 0-6)
+│   │   ├── 007_create_schedule_overrides.ts# ตาราง schedule_overrides (ตารางยกเว้น/วันลา)
+│   │   └── 008_create_appointments.ts      # ตาราง appointments + statuses + cancellation
+│   ├── seeds/
+│   │   └── 001_initial_seed.ts             # Seed ข้อมูลจำลองสำหรับทดสอบ (Users, Doctors, Slots)
+│   ├── test/                               # ชุดทดสอบ Vitest Integration Tests (9 Suites, 131 Tests)
+│   │   ├── setup.ts & helpers.ts           # Test Setup & Truncate Tables Isolation Helper
+│   │   ├── auth.test.ts                    # ทดสอบ Login, Token Rotation, Logout, RBAC
+│   │   ├── appointments.test.ts            # ทดสอบ 11 Validation, Pessimistic Lock, Reschedule
+│   │   ├── schedules.test.ts               # ทดสอบตารางสัปดาห์และการตรวจ Overlap
+│   │   ├── overrides.test.ts               # ทดสอบตารางยกเว้น วันลา และ Priority เหนือตารางปกติ
+│   │   ├── patients.test.ts                # ทดสอบสร้างเลข HN อัตโนมัติและประวัตินัดหมาย
+│   │   ├── doctors.test.ts                 # ทดสอบ CRUD แพทย์และ Unique License
+│   │   ├── departments.test.ts             # ทดสอบ CRUD แผนก
+│   │   ├── appointment-types.test.ts       # ทดสอบ CRUD ประเภทนัดหมาย
+│   │   └── dashboard.test.ts               # ทดสอบสรุปสถิติประจำวันและคิวตรวจ
 │   └── src/
-│       ├── app.ts                  # Express App Entry Point
-│       ├── config/                 # การอ่าน Env และ Response Formatter
-│       ├── middleware/             # Authenticate, Authorize, Error Handler
-│       ├── api/                    # โมดูลระบบ (Routes, Controller, Service, Schema)
-│       │   ├── auth/
-│       │   ├── departments/
-│       │   ├── doctors/
-│       │   ├── patients/
-│       │   ├── appointment-types/
-│       │   ├── schedules/
-│       │   ├── overrides/
-│       │   ├── appointments/
-│       │   └── dashboard/
-│       └── test/                   # Integration Test ทั้งหมด 9 ชุด
-└── frontend/
-    ├── app/                        # Next.js App Router (Dashboard, Auth, Pages)
+│       ├── app.ts                          # Express Bootstrap (Helmet, CORS, Rate Limit, Routes)
+│       ├── config/
+│       │   ├── env.ts                      # Parse & Validate Environment Variables ด้วย Zod
+│       │   └── response.ts                 # Standard JSON Response Envelope (`sendSuccess`, `sendPaginated`)
+│       ├── knex/
+│       │   ├── db.ts                       # Knex Database Instance Connection Pool
+│       │   ├── migrate.ts                  # Migration Runner CLI Script
+│       │   └── seed.ts                     # Seed Runner CLI Script
+│       ├── middleware/
+│       │   ├── authenticate.ts             # JWT Bearer & ApiKey Verification (Dev Mode)
+│       │   ├── authorize.ts                # Role-Based Access Control (Admin, Receptionist, Doctor)
+│       │   ├── error-handler.ts            # Centralized Error Handler (Zod, AppError, PostgreSQL)
+│       │   ├── not-found.ts                # 404 Not Found Middleware
+│       │   └── request-logger.ts           # HTTP Request Logger
+│       ├── types/
+│       │   └── express.d.ts                # Express Request Type Extensions (User Payload)
+│       ├── utils/
+│       │   └── time.ts                     # Time calculation & Asia/Bangkok UTC+7 utilities
+│       └── api/                            # Domain Modules (4-File Module Pattern)
+│           ├── auth/                       # [Router, Controller, Service, Schema]
+│           ├── departments/                # [Router, Controller, Service, Schema]
+│           ├── doctors/                    # [Router, Controller, Service, Schema]
+│           ├── patients/                   # [Router, Controller, Service, Schema, Patient.fn]
+│           ├── appointment-types/          # [Router, Controller, Service, Schema]
+│           ├── schedules/                  # [Router, Controller, Service, Schema, Schedule.fn]
+│           ├── overrides/                  # [Router, Controller, Service, Schema]
+│           ├── appointments/               # [Router, Controller, Service, Schema, Appointment.fn]
+│           └── dashboard/                  # [Router, Controller, Service, Schema]
+│
+└── frontend/                               # ── Frontend Web App (Next.js 16 + React 19) ──
+    ├── Dockerfile                          # Multi-stage Docker build สำหรับ Next.js
+    ├── package.json & tsconfig.json        # Dependencies & TypeScript Configuration
+    ├── app/                                # Next.js App Router Structure
+    │   ├── layout.tsx & globals.css        # Root Layout & Tailwind CSS v4 Clinical Tokens
+    │   ├── favicon.ico                     # Clinical Favicon Icon
+    │   ├── (auth)/
+    │   │   └── login/page.tsx              # หน้าเข้าสู่ระบบของเจ้าหน้าที่
+    │   └── (dashboard)/                    # ส่วน Dashboard หลังเข้าสู่ระบบ (Sidebar Layout)
+    │       ├── layout.tsx                  # Dashboard Frame Layout (Sidebar + Navbar)
+    │       ├── page.tsx                    # Clinic Overview & Live Real-time Queue Table
+    │       ├── appointments/page.tsx       # รายการนัดหมาย, ค้นหา, กรอง และปุ่มเปิดจองนัด
+    │       ├── schedules/page.tsx          # ตารางตรวจแพทย์ประจำสัปดาห์และปฏิทินบันทึกวันลา
+    │       ├── patients/page.tsx           # ทะเบียนคนไข้, ค้นหาด่วน และ Timeline ประวัติย้อนหลัง
+    │       ├── doctors/page.tsx            # ทำเนียบแพทย์ประจำโรงพยาบาลและสังกัดแผนก
+    │       ├── departments/page.tsx        # รายชื่อแผนกการรักษา
+    │       └── appointment-types/page.tsx  # ตั้งค่าประเภทนัดหมาย ระยะเวลาตรวจ และสีแท็ก
     └── src/
-        ├── api/                    # API Client สำหรับเรียก Backend
-        ├── components/             # Reusable UI Components & Modals
-        └── hooks/                  # React Query Hooks
+        ├── api/                            # Axios API Client & Module Request Wrappers
+        │   ├── client.ts                   # Axios Client Instance พร้อม Response Interceptors
+        │   ├── auth.api.ts                 # ฟังก์ชันเรียก Auth (Login, Refresh, Logout, Me)
+        │   ├── appointment.api.ts          # ฟังก์ชันเรียก Appointments & Available Slots
+        │   ├── schedule.api.ts             # ฟังก์ชันเรียก Schedules & Overrides
+        │   ├── patient.api.ts              # ฟังก์ชันเรียก Patients & Appointments History
+        │   ├── doctor.api.ts               # ฟังก์ชันเรียก Doctors CRUD
+        │   ├── department.api.ts           # ฟังก์ชันเรียก Departments CRUD
+        │   ├── appointment-type.api.ts     # ฟังก์ชันเรียก Appointment Types CRUD
+        │   ├── dashboard.api.ts            # ฟังก์ชันเรียก Summary & Stats
+        │   └── index.ts                    # Central API Exports
+        ├── components/                     # Component Library แยกหมวดหมู่ตามหน้าที่
+        │   ├── ui/                         # Base Components (Button, Input, Select, Textarea, TimeInput, Modal, Card, Badge, StatusBadge, Table, SegmentedControl)
+        │   ├── appointments/               # BookingModal, StepPatientSelect, StepDoctorSelect, StepSlotPicker, StepSummaryConfirm, CancelAppointmentModal, RescheduleAppointmentModal
+        │   ├── schedules/                  # WeeklyTimetableGrid, ScheduleModal, OverrideModal, OverridesListTable, MonthlyCalendarView, DayScheduleDrawer
+        │   ├── patients/                   # PatientQuickAddModal, PatientHistoryTimeline
+        │   ├── doctors/                    # DoctorModal
+        │   ├── departments/                # DepartmentModal
+        │   ├── appointment-types/          # AppointmentTypeModal
+        │   ├── layout/                     # Sidebar, Navbar
+        │   ├── feedback/                   # ConfirmDialog, EmptyState, LoadingSpinner
+        │   ├── auth/                       # AuthGuard
+        │   ├── Pagination.tsx              # Component Pagination
+        │   ├── SearchBar.tsx               # Component กล่องค้นหา
+        │   ├── ThemeToggle.tsx             # Component สลับ Dark/Light Mode
+        │   └── Logo.tsx                    # Logo ประจำระบบ
+        ├── hooks/                          # TanStack React Query Custom Hooks
+        │   ├── useAppointments.ts          # Hooks ดึงนัดหมาย, Slot ว่าง, จอง, ยกเลิก, เลื่อนนัด
+        │   ├── useSchedules.ts             # Hooks จัดการตารางแพทย์ และ Overrides
+        │   ├── usePatients.ts              # Hooks จัดการข้อมูลผู้ป่วย และประวัตินัด
+        │   ├── useDoctors.ts               # Hooks จัดการข้อมูลแพทย์
+        │   ├── useDepartments.ts           # Hooks จัดการแผนก
+        │   ├── useAppointmentTypes.ts      # Hooks จัดการประเภทนัดหมาย
+        │   ├── useDashboard.ts             # Hooks ดึงข้อมูล Summary & Stats
+        │   └── useDebounce.ts              # Hook หน่วงเวลาการ Search
+        ├── lib/                            # Utility Functions & Local Storage Helper
+        │   ├── format.ts                   # Date & Time Formatting (พ.ศ./ค.ศ., Badge Colors)
+        │   └── storage.ts                  # Local Storage User Token Manager
+        ├── providers/                      # Application Context Providers
+        │   ├── QueryProvider.tsx           # TanStack QueryClientProvider & Cache Config
+        │   └── ToastProvider.tsx           # Toast Notification Context
+        ├── stores/                         # Global State Management
+        │   └── auth.store.ts               # Zustand Store จัดการ Auth State & Profile
+        └── types/                          # TypeScript Interfaces & Types
+            └── index.ts                    # Type Definitions ครอบคลุมทุก Entity และ API Models
 ```
+
+### 🧩 รูปแบบสถาปัตยกรรม Backend (4-File Module Pattern)
+ในแต่ละโฟลเดอร์ย่อยของ `backend/src/api/*` จะแบ่งหน้าที่ชัดเจนตามหลัก Separation of Concerns:
+1. **`*.router.ts`**: ประกาศ HTTP Routes, กำหนดสิทธิ์ผู้ใช้ (`authorize`), และเรียก Controller
+2. **`*.controller.ts`**: รับ Request, เรียกใช้ Validation, ส่งต่องานให้ Service และจัด Format Response
+3. **`*.service.ts`**: จัดการ Business Logic, เรียกใช้ Database Transaction และ Pessimistic Locking
+4. **`*.schema.ts`**: กำหนด Zod Schema สำหรับตรวจสอบ Request Body, Params และ Query String อย่างเข้มงวด
 
 ---
 
@@ -290,7 +394,8 @@ npm run dev
 | Username | Password | Role | สิทธิ์การใช้งาน |
 |---|---|---|---|
 | `admin` | `password123` | `admin` | สิทธิ์สูงสุด จัดการ Master Data, หมอ, แผนก, ตารางตรวจ, ตั้งค่าระบบ |
-| `receptionist1` | `password123` | `receptionist` | เจ้าหน้าที่เวชระเบียน ลงทะเบียนคนไข้, จอง/เลื่อน/ยกเลิกนัด, เช็คอินคนไข้ |
+| `receptionist1` | `password123` | `receptionist` | เจ้าหน้าที่เวชระเบียน (สมหญิง) ลงทะเบียนคนไข้, จอง/เลื่อน/ยกเลิกนัด, เช็คอิน |
+| `receptionist2` | `password123` | `receptionist` | เจ้าหน้าที่เวชระเบียน (มานิต) |
 | `dr_somchai` | `password123` | `doctor` | แพทย์ (อายุรกรรม) ดูตารางตรวจ คิวคนไข้ และอัปเดตสถานะตรวจเสร็จ |
 | `dr_natthapong` | `password123` | `doctor` | แพทย์ (โรคหัวใจ) |
 | `dr_wipawan` | `password123` | `doctor` | แพทย์ (ออร์โธปิดิกส์) |
@@ -299,41 +404,96 @@ npm run dev
 
 ## 🔌 REST API Endpoints & สิทธิ์การใช้งาน
 
-**Base URL**: `http://localhost:4000/api/v1`
+**Base URL**: `http://localhost:4000/api/v1`  
+*การยืนยันตัวตน: แนบ Header `Authorization: Bearer <token>` หรือ Cookie `refreshToken` (ในโหมด Dev/Test รองรับ `Authorization: ApiKey testapi` พร้อม `X-Role: admin`)*
 
-### 1. ระบบยืนยันตัวตน (Authentication)
-- `POST /auth/login` - เข้าสู่ระบบ (Public)
-- `POST /auth/register` - สร้างผู้ใช้งานใหม่ (Admin)
-- `POST /auth/refresh` - ขอ Access Token ใหม่ผ่าน Cookie (Public)
-- `POST /auth/logout` - ออกจากระบบ (Authenticated)
-- `GET /auth/me` - ดูข้อมูลโปรไฟล์ปัจจุบัน (Authenticated)
+### 1. ระบบยืนยันตัวตน (Authentication — `/auth`)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `POST` | `/auth/login` | เข้าสู่ระบบด้วย username & password (รับ Access Token และ Refresh Token Cookie) | Public |
+| `POST` | `/auth/register` | ลงทะเบียนผู้ใช้งานใหม่ | Public / Admin |
+| `POST` | `/auth/refresh` | ขอ Access Token ใหม่ด้วย Refresh Token จาก HTTP-Only Cookie | Public |
+| `POST` | `/auth/logout` | ออกจากระบบและยกเลิก Refresh Token | Authenticated |
+| `GET` | `/auth/me` | ดูข้อมูลโปรไฟล์ของผู้ใช้งานปัจจุบัน | ทุกบทบาท (Authenticated) |
 
-### 2. ระบบนัดหมาย (Appointments)
-- `GET /appointments/available-slots` - ค้นหา Slot ว่างตามแพทย์, วันที่ และประเภทนัดหมาย
-- `POST /appointments` - จองนัดหมายใหม่ (ผ่าน 11 ขั้นตอน Validation & Lock แถว)
-- `GET /appointments` - ค้นหารายการนัดหมาย (Filter ตามวันที่, แพทย์, คนไข้, สถานะ)
-- `GET /appointments/:id` - ดูรายละเอียดนัดหมาย
-- `PATCH /appointments/:id/status` - เปลี่ยนสถานะนัดหมาย (`confirmed`, `checked_in`, `in_progress`, `completed`, `no_show`)
-- `PATCH /appointments/:id/cancel` - ยกเลิกนัดหมาย (บังคับระบุเหตุผล)
-- `POST /appointments/:id/reschedule` - เลื่อนนัดหมาย (Atomic Cancel + Create ใหม่)
+### 2. ระบบนัดหมายผู้ป่วยนอก (Appointments — `/appointments`)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `GET` | `/appointments/available-slots` | คำนวณ Slot ว่างตาม `doctor_id`, `date`, `appointment_type_id` | ทุกบทบาท (Authenticated) |
+| `GET` | `/appointments` | ค้นหารายการนัดหมาย (Filter: date, from_date, to_date, doctor_id, patient_id, status, search) | ทุกบทบาท (Authenticated) |
+| `GET` | `/appointments/:id` | ดูรายละเอียดนัดหมายพร้อมข้อมูลแพทย์ แผนก ผู้ป่วย และประเภทนัดหมาย | ทุกบทบาท (Authenticated) |
+| `POST` | `/appointments` | จองนัดหมายใหม่ (ตรวจสอบ 11 ขั้นตอน + Pessimistic Row Lock) | `Admin`, `Receptionist` |
+| `PATCH` | `/appointments/:id/status` | เปลี่ยนสถานะนัดหมาย (`confirmed`, `checked_in`, `in_progress`, `completed`, `no_show`) | `Admin`, `Receptionist`, `Doctor` |
+| `PATCH` | `/appointments/:id/cancel` | ยกเลิกนัดหมาย (บังคับระบุเหตุผล คืน Slot ทันที) | `Admin`, `Receptionist` |
+| `POST` | `/appointments/:id/reschedule` | เลื่อนนัดหมาย (Atomic Cancel นัดเดิม + สร้างนัดใหม่) | `Admin`, `Receptionist` |
 
-### 3. ตารางเวลาแพทย์ (Schedules & Overrides)
-- `GET /doctors/:doctorId/schedules` - ดูตารางเวลาประจำสัปดาห์
-- `POST /doctors/:doctorId/schedules` - เพิ่มตารางเวลาแพทย์ (ตรวจสอบการซ้อนทับอัตโนมัติ)
-- `PATCH /schedules/:id` - แก้ไขตารางเวลา
-- `DELETE /schedules/:id` - ลบตารางเวลา
-- `GET /overrides` - ดูรายการวันหยุด/ตารางพิเศษรายวัน
-- `POST /doctors/:doctorId/overrides` - กำหนดวันหยุดแพทย์หรือเวลาตรวจพิเศษ
-- `DELETE /overrides/:id` - ลบ Override (กลับไปใช้ตารางประจำสัปดาห์)
+### 3. ตารางเวลาแพทย์ประจำสัปดาห์ (Doctor Schedules — `/schedules` & `/doctors/:doctorId/schedules`)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `GET` | `/schedules` | ดึงรายการตารางเวลาแพทย์ทั้งหมด (Pagination & Search) | ทุกบทบาท (Authenticated) |
+| `GET` | `/schedules/:id` | ดูรายละเอียดตารางเวลาแพทย์ตาม ID | ทุกบทบาท (Authenticated) |
+| `PATCH` | `/schedules/:id` | แก้ไขตารางเวลาแพทย์ (ตรวจสอบการซ้อนทับอัตโนมัติ) | `Admin` |
+| `DELETE` | `/schedules/:id` | ลบตารางเวลาแพทย์ | `Admin` |
+| `GET` | `/doctors/:doctorId/schedules` | ดึงตารางเวลาประจำสัปดาห์ของแพทย์คนนั้นๆ (0=อาทิตย์ ถึง 6=เสาร์) | ทุกบทบาท (Authenticated) |
+| `POST` | `/doctors/:doctorId/schedules` | เพิ่มช่วงเวลาตรวจให้แพทย์ (ตรวจสอบการซ้อนทับอัตโนมัติ) | `Admin` |
 
-### 4. ผู้ป่วยและข้อมูลหลัก (Patients & Master Data)
-- `GET /patients` - ค้นหาผู้ป่วย (ค้นด้วยชื่อ, HN, เบอร์โทร, เลขบัตรประชาชน)
-- `POST /patients` - ลงทะเบียนผู้ป่วยใหม่ (สร้าง `HN-XXXXXX` อัตโนมัติ)
-- `GET /patients/:id/appointments` - ดูประวัตินัดหมายย้อนหลังของผู้ป่วย
-- `GET /doctors` | `POST /doctors` | `PATCH /doctors/:id` - จัดการข้อมูลแพทย์
-- `GET /departments` | `POST /departments` - จัดการแผนก
-- `GET /appointment-types` - ดูและจัดการประเภทการนัดหมาย
-- `GET /dashboard/summary` - สรุปสถิติประจำวันและคิวคนไข้วันนี้
+### 4. ตารางยกเว้นและวันลาแพทย์ (Schedule Overrides — `/overrides` & `/doctors/:doctorId/overrides`)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `GET` | `/overrides` | ดึงรายการ Override ทั้งหมด (Filter: doctor_id, from_date, to_date) | ทุกบทบาท (Authenticated) |
+| `GET` | `/overrides/:id` | ดูรายละเอียด Override ตาม ID | ทุกบทบาท (Authenticated) |
+| `PATCH` | `/overrides/:id` | แก้ไขข้อมูล Override | `Admin` |
+| `DELETE` | `/overrides/:id` | ลบ Override (ระบบจะกลับไปใช้ตารางประจำสัปดาห์) | `Admin` |
+| `GET` | `/doctors/:doctorId/overrides` | ดึงรายการ Override เฉพาะของแพทย์คนนั้นๆ | ทุกบทบาท (Authenticated) |
+| `POST` | `/doctors/:doctorId/overrides` | สร้าง Override (กำหนดวันลาแพทย์ หรือเวลาตรวจพิเศษ) | `Admin` |
+
+### 5. ทะเบียนผู้ป่วย (Patients — `/patients`)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `GET` | `/patients` | ค้นหารายชื่อผู้ป่วย (ค้นด้วยชื่อ, นามสกุล, HN, เบอร์โทร, เลขบัตรประชาชน) | ทุกบทบาท (Authenticated) |
+| `GET` | `/patients/:id` | ดูข้อมูลผู้ป่วยตาม ID | ทุกบทบาท (Authenticated) |
+| `GET` | `/patients/:id/appointments` | ดึงประวัติการนัดหมายทั้งหมดของผู้ป่วยรายนั้น | ทุกบทบาท (Authenticated) |
+| `POST` | `/patients` | ลงทะเบียนผู้ป่วยใหม่ (สร้างรหัส `HN-XXXXXX` อัตโนมัติ) | `Admin`, `Receptionist` |
+| `PATCH` | `/patients/:id` | แก้ไขข้อมูลประวัติผู้ป่วย | `Admin`, `Receptionist` |
+| `DELETE` | `/patients/:id` | ปิดการใช้งานข้อมูลผู้ป่วย (Soft Delete) | `Admin` |
+
+### 6. ข้อมูลแพทย์ (Doctors — `/doctors`)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `GET` | `/doctors` | ดึงรายชื่อแพทย์ทั้งหมด (Filter ตามแผนกและค้นหา) | ทุกบทบาท (Authenticated) |
+| `GET` | `/doctors/:id` | ดูข้อมูลแพทย์พร้อมข้อมูลแผนกที่สังกัด | ทุกบทบาท (Authenticated) |
+| `POST` | `/doctors` | เพิ่มข้อมูลแพทย์ใหม่ (ตรวจสอบเลขที่ใบอนุญาต unique) | `Admin` |
+| `PATCH` | `/doctors/:id` | แก้ไขข้อมูลแพทย์ | `Admin` |
+| `DELETE` | `/doctors/:id` | ปิดการใช้งานข้อมูลแพทย์ (Soft Delete) | `Admin` |
+
+### 7. แผนกการรักษา (Departments — `/departments`)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `GET` | `/departments` | ดึงรายชื่อแผนกการรักษาทั้งหมด | ทุกบทบาท (Authenticated) |
+| `GET` | `/departments/:id` | ดูข้อมูลแผนกการรักษาตาม ID | ทุกบทบาท (Authenticated) |
+| `POST` | `/departments` | เพิ่มแผนกการรักษาใหม่ | `Admin` |
+| `PATCH` | `/departments/:id` | แก้ไขข้อมูลแผนกการรักษา | `Admin` |
+| `DELETE` | `/departments/:id` | ปิดการใช้งานแผนก (Soft Delete) | `Admin` |
+
+### 8. ประเภทการนัดหมาย (Appointment Types — `/appointment-types`)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `GET` | `/appointment-types` | ดึงรายการประเภทการนัดหมายและระยะเวลาตรวจทั้งหมด | ทุกบทบาท (Authenticated) |
+| `GET` | `/appointment-types/:id` | ดูข้อมูลประเภทการนัดหมายตาม ID | ทุกบทบาท (Authenticated) |
+| `POST` | `/appointment-types` | เพิ่มประเภทการนัดหมายใหม่ (กำหนดระยะเวลาตรวจและสีแท็ก) | `Admin` |
+| `PATCH` | `/appointment-types/:id` | แก้ไขประเภทการนัดหมาย | `Admin` |
+| `DELETE` | `/appointment-types/:id` | ปิดการใช้งานประเภทการนัดหมาย (Soft Delete) | `Admin` |
+
+### 9. รายงานสถิติและคิวตรวจ (Dashboard — `/dashboard`)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `GET` | `/dashboard/summary` | สรุปสถิติประจำวัน, จำนวนแพทย์เข้าตรวจ, แยกสถานะคิว, และตารางคิววันนี้ | ทุกบทบาท (Authenticated) |
+| `GET` | `/dashboard/stats` | สรุปสถิติการนัดหมายตามช่วงวันที่ (`from_date`, `to_date`) | ทุกบทบาท (Authenticated) |
+
+### 10. ตรวจสอบสถานะระบบ (Health Check)
+| Method | Endpoint | คำอธิบาย | สิทธิ์การใช้งาน |
+|---|---|---|---|
+| `GET` | `/health` | ตรวจสอบสถานะความพร้อมของเซิร์ฟเวอร์ Backend API | Public |
 
 ---
 
@@ -458,7 +618,7 @@ erDiagram
 โปรเจกต์มีชุดทดสอบ Integration Tests ครอบคลุมทุก Business Logic สำคัญ:
 
 ```bash
-# รันชุดทดสอบ Backend ทั้งหมด (9 Suites, 130 Tests)
+# รันชุดทดสอบ Backend ทั้งหมด (9 Suites, 131 Tests)
 cd backend
 npm test
 
@@ -466,9 +626,9 @@ npm test
 npm run test:ui
 ```
 
-### ผลการทดสอบ (130 / 130 Passed — 100%)
+### ผลการทดสอบ (131 / 131 Passed — 100%)
 - **`appointments.test.ts` (26 tests)**: ตรวจสอบความถูกต้องของ Validation ทั้ง 11 ข้อ, การคำนวณ Slot ว่าง, การทดสอบ Concurrency Lock ด้วย `FOR UPDATE`, การยกเลิกและคืน Slot, และการ Reschedule แบบ Atomic
-- **`schedules.test.ts` (12 tests)** & **`overrides.test.ts` (12 tests)**: การตรวจสอบตารางซ้อนทับ, สิทธิ์การทำงาน และลำดับความสำคัญของ Override เหนือตารางปกติ
+- **`schedules.test.ts` (13 tests)** & **`overrides.test.ts` (12 tests)**: การตรวจสอบตารางซ้อนทับ, สิทธิ์การทำงาน และลำดับความสำคัญของ Override เหนือตารางปกติ
 - **`patients.test.ts` (16 tests)**: การสร้างเลข HN อัตโนมัติ, การค้นหา และการดึงประวัตินัดหมาย
 - **`doctors.test.ts` (17 tests)**, **`departments.test.ts` (15 tests)**, **`appointment-types.test.ts` (14 tests)**: การทำ CRUD และการเชื่อมโยงข้อมูล
 - **`auth.test.ts` (12 tests)** & **`dashboard.test.ts` (6 tests)**: การตรวจสอบ Token, สิทธิ์ RBAC และสถิติ Dashboard
