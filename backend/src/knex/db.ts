@@ -1,5 +1,9 @@
 import knex, { type Knex } from 'knex';
+import pg from 'pg';
 import { env } from '../config/env';
+
+// Return PostgreSQL DATE column (type 1082) as plain YYYY-MM-DD string
+pg.types.setTypeParser(1082, (val: string) => val);
 
 const config: Knex.Config = {
   client: 'pg',
@@ -10,8 +14,10 @@ const config: Knex.Config = {
   migrations: { directory: './migrations', extension: 'ts', loadExtensions: ['.ts'] },
   seeds: { directory: './seeds', extension: 'ts', loadExtensions: ['.ts'] },
   pool: {
-    afterCreate: (conn: { query: (sql: string, cb: (err: Error | null) => void) => void }, done: (err: Error | null, conn: unknown) => void) =>
-      conn.query("SET timezone='Asia/Bangkok'", (err) => done(err, conn)),
+    afterCreate: (
+      conn: { query: (sql: string, cb: (err: Error | null) => void) => void },
+      done: (err: Error | null, conn: unknown) => void,
+    ) => conn.query("SET timezone='Asia/Bangkok'", (err) => done(err, conn)),
   },
 };
 

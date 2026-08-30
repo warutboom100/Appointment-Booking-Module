@@ -10,6 +10,10 @@ import { requestLogger } from './middleware/request-logger';
 import { authRouter } from './api/auth/auth.router';
 import { departmentRouter } from './api/departments/department.router';
 import { doctorRouter } from './api/doctors/doctor.router';
+import { patientRouter } from './api/patients/patient.router';
+import { appointmentTypeRouter } from './api/appointment-types/appointment-type.router';
+import { scheduleRouter } from './api/schedules/schedule.router';
+import { overrideRouter } from './api/overrides/override.router';
 import { db } from './knex/db';
 
 export const app = express();
@@ -40,6 +44,10 @@ if (env.NODE_ENV !== 'test') {
 app.use(`${env.API_PREFIX}/auth`, authRouter);
 app.use(`${env.API_PREFIX}/departments`, departmentRouter);
 app.use(`${env.API_PREFIX}/doctors`, doctorRouter);
+app.use(`${env.API_PREFIX}/patients`, patientRouter);
+app.use(`${env.API_PREFIX}/appointment-types`, appointmentTypeRouter);
+app.use(`${env.API_PREFIX}/schedules`, scheduleRouter);
+app.use(`${env.API_PREFIX}/overrides`, overrideRouter);
 
 app.use(notFound);
 app.use(errorHandler);
