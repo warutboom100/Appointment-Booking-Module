@@ -7,24 +7,13 @@ import {
   updateAppointmentStatusApi,
   cancelAppointmentApi,
   rescheduleAppointmentApi,
-  getAppointmentTypesApi,
   type GetAppointmentsParams,
 } from '@/api/appointment.api';
 import type { CreateAppointmentInput } from '@/types';
 
 export const APPOINTMENTS_KEY = 'appointments';
-export const APPOINTMENT_TYPES_KEY = 'appointment-types';
 export const AVAILABLE_SLOTS_KEY = 'available-slots';
 export const DASHBOARD_SUMMARY_KEY = 'dashboard-summary';
-
-// === Appointment Types ===
-export function useAppointmentTypes() {
-  return useQuery({
-    queryKey: [APPOINTMENT_TYPES_KEY],
-    queryFn: getAppointmentTypesApi,
-    staleTime: 5 * 60 * 1000,
-  });
-}
 
 // === Appointments List & Single ===
 export function useAppointments(params: GetAppointmentsParams = {}) {

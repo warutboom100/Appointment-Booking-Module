@@ -13,6 +13,7 @@ const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   '/schedules': { title: 'ตารางตรวจแพทย์', subtitle: 'ปฏิทินตารางออกตรวจและวันหยุดแพทย์' },
   '/doctors': { title: 'จัดการข้อมูลแพทย์', subtitle: 'ลงทะเบียนและจัดการประวัติแพทย์' },
   '/departments': { title: 'ข้อมูลแผนก', subtitle: 'จัดการข้อมูลแผนกในโรงพยาบาล' },
+  '/appointment-types': { title: 'ประเภทการนัดหมาย', subtitle: 'จัดการประเภทการตรวจและระยะเวลา' },
 };
 
 export function Navbar({

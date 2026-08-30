@@ -69,6 +69,7 @@ api.interceptors.response.use(
       const res = await api.post(`/auth/refresh`);
       const newAccessToken = res.data.data.accessToken as string;
       setAccessToken(newAccessToken);
+      api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
       processQueue(null, newAccessToken);
 
       original.headers.Authorization = `Bearer ${newAccessToken}`;

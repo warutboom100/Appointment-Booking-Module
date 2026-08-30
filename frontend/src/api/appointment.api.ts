@@ -8,12 +8,6 @@ import type {
   ApiResponse,
 } from '@/types';
 
-// === Appointment Types ===
-export async function getAppointmentTypesApi(): Promise<AppointmentType[]> {
-  const { data } = await api.get<ApiResponse<AppointmentType[]>>('/appointment-types');
-  return data.data;
-}
-
 // === Appointments (Core) ===
 export interface GetAppointmentsParams {
   patient_id?: string;
@@ -21,6 +15,7 @@ export interface GetAppointmentsParams {
   department_id?: string;
   date?: string;
   status?: string;
+  search?: string;
   page?: number;
   limit?: number;
 }

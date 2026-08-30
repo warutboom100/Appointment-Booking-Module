@@ -1,6 +1,7 @@
 import type { Knex } from 'knex';
 
 export async function up(knex: Knex): Promise<void> {
+  await knex.raw('CREATE SEQUENCE IF NOT EXISTS patient_hn_seq START WITH 1 INCREMENT BY 1');
   await knex.schema.createTable('patients', (table) => {
     table.uuid('id').primary().defaultTo(knex.raw('gen_random_uuid()'));
     table.string('hn', 20).notNullable().unique();
@@ -25,4 +26,5 @@ export async function up(knex: Knex): Promise<void> {
 
 export async function down(knex: Knex): Promise<void> {
   await knex.schema.dropTableIfExists('patients');
+  await knex.raw('DROP SEQUENCE IF EXISTS patient_hn_seq');
 }

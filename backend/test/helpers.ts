@@ -13,5 +13,7 @@ export async function clearAllTables(): Promise<void> {
       refresh_tokens, 
       users 
     CASCADE;
+    CREATE SEQUENCE IF NOT EXISTS patient_hn_seq START WITH 1 INCREMENT BY 1;
+    ALTER SEQUENCE IF EXISTS patient_hn_seq RESTART WITH 1;
   `);
 }

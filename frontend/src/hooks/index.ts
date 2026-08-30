@@ -4,3 +4,4 @@ export * from './useSchedules';
 export * from './useDoctors';
 export * from './useDepartments';
 export * from './useAppointments';
+export * from './useAppointmentTypes';

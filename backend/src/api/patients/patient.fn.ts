@@ -1,19 +1,12 @@
 import type { Knex } from 'knex';
 import { db } from '../../knex/db';
 
-export async function generateNextHn(trx?: Knex.Transaction): Promise<string> {
-  const query = trx ? trx('patients') : db('patients');
-
-  const latest = await query
-    .whereRaw("hn ~ '^HN-[0-9]+$'")
-    .orderByRaw('CAST(SUBSTRING(hn FROM 4) AS INTEGER) DESC')
-    .first();
-
-  if (!latest) {
-    return 'HN-000001';
-  }
-
-  const numericPart = parseInt(latest.hn.replace('HN-', ''), 10);
-  const nextNum = isNaN(numericPart) ? 1 : numericPart + 1;
+export async function generateNextHn(trx?: Knex | Knex.Transaction): Promise<string> {
+  const runner = trx || db;
+  await runner.raw('CREATE SEQUENCE IF NOT EXISTS patient_hn_seq START WITH 1 INCREMENT BY 1');
+  const result = await runner.raw<{ rows: Array<{ next_val: string | number }> }>(
+    "SELECT nextval('patient_hn_seq') as next_val",
+  );
+  const nextNum = parseInt(String(result.rows[0].next_val), 10);
   return `HN-${String(nextNum).padStart(6, '0')}`;
 }

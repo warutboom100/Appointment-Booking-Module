@@ -196,71 +196,42 @@ export async function getStats(
 
   const { department_id, doctor_id } = query;
 
-  // Base appointments query in date range
-  const baseQuery = trx('appointments as a')
-    .leftJoin('departments as dep', 'a.department_id', 'dep.id')
-    .leftJoin('appointment_types as at', 'a.appointment_type_id', 'at.id')
+  // 1. Grouped Daily Status Counts (Single Query for Totals, Rates & Daily Trend)
+  const statusDailyQuery = trx('appointments as a')
     .where('a.appointment_date', '>=', from_date)
     .where('a.appointment_date', '<=', to_date);
 
-  if (department_id) {
-    baseQuery.where('a.department_id', department_id);
-  }
-  if (doctor_id) {
-    baseQuery.where('a.doctor_id', doctor_id);
-  }
+  if (department_id) statusDailyQuery.where('a.department_id', department_id);
+  if (doctor_id) statusDailyQuery.where('a.doctor_id', doctor_id);
 
-  const rows = await baseQuery.select(
-    'a.id',
-    'a.status',
-    'a.appointment_date',
-    'a.department_id',
-    'dep.name as department_name',
-    'a.appointment_type_id',
-    'at.name as appointment_type_name',
-  );
+  const statusDailyRows = await statusDailyQuery
+    .select(
+      'a.appointment_date',
+      'a.status',
+      trx.raw('COUNT(*)::integer as count')
+    )
+    .groupBy('a.appointment_date', 'a.status')
+    .orderBy('a.appointment_date', 'asc');
 
-  const total = rows.length;
+  let total = 0;
   let completed = 0;
   let cancelled = 0;
   let no_show = 0;
-
   const dailyMap = new Map<string, { total: number; completed: number; cancelled: number }>();
-  const deptMap = new Map<string, { name: string; count: number }>();
-  const typeMap = new Map<string, { name: string; count: number }>();
 
-  for (const r of rows) {
-    if (r.status === 'completed') completed++;
-    if (r.status === 'cancelled') cancelled++;
-    if (r.status === 'no_show') no_show++;
+  for (const row of statusDailyRows) {
+    const rowCount = Number(row.count);
+    total += rowCount;
+    if (row.status === 'completed') completed += rowCount;
+    if (row.status === 'cancelled') cancelled += rowCount;
+    if (row.status === 'no_show') no_show += rowCount;
 
-    // Daily aggregation
-    const dateKey = r.appointment_date;
+    const dateKey = row.appointment_date;
     const dailyEntry = dailyMap.get(dateKey) || { total: 0, completed: 0, cancelled: 0 };
-    dailyEntry.total++;
-    if (r.status === 'completed') dailyEntry.completed++;
-    if (r.status === 'cancelled') dailyEntry.cancelled++;
+    dailyEntry.total += rowCount;
+    if (row.status === 'completed') dailyEntry.completed += rowCount;
+    if (row.status === 'cancelled') dailyEntry.cancelled += rowCount;
     dailyMap.set(dateKey, dailyEntry);
-
-    // Department aggregation
-    if (r.department_id) {
-      const deptEntry = deptMap.get(r.department_id) || {
-        name: r.department_name || 'Unknown Department',
-        count: 0,
-      };
-      deptEntry.count++;
-      deptMap.set(r.department_id, deptEntry);
-    }
-
-    // Appointment Type aggregation
-    if (r.appointment_type_id) {
-      const typeEntry = typeMap.get(r.appointment_type_id) || {
-        name: r.appointment_type_name || 'Unknown Type',
-        count: 0,
-      };
-      typeEntry.count++;
-      typeMap.set(r.appointment_type_id, typeEntry);
-    }
   }
 
   const completion_rate = total > 0 ? Number(((completed / total) * 100).toFixed(1)) : 0;
@@ -275,21 +246,53 @@ export async function getStats(
     }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const department_breakdown = Array.from(deptMap.entries())
-    .map(([department_id, data]) => ({
-      department_id,
-      department_name: data.name,
-      count: data.count,
-    }))
-    .sort((a, b) => b.count - a.count);
+  // 2. Department Breakdown via SQL GROUP BY
+  const deptQuery = trx('appointments as a')
+    .join('departments as dep', 'a.department_id', 'dep.id')
+    .where('a.appointment_date', '>=', from_date)
+    .where('a.appointment_date', '<=', to_date);
 
-  const top_appointment_types = Array.from(typeMap.entries())
-    .map(([appointment_type_id, data]) => ({
-      appointment_type_id,
-      name: data.name,
-      count: data.count,
-    }))
-    .sort((a, b) => b.count - a.count);
+  if (department_id) deptQuery.where('a.department_id', department_id);
+  if (doctor_id) deptQuery.where('a.doctor_id', doctor_id);
+
+  const deptRows = await deptQuery
+    .select(
+      'dep.id as department_id',
+      'dep.name as department_name',
+      trx.raw('COUNT(*)::integer as count')
+    )
+    .groupBy('dep.id', 'dep.name')
+    .orderBy('count', 'desc');
+
+  const department_breakdown = deptRows.map((r) => ({
+    department_id: r.department_id,
+    department_name: r.department_name,
+    count: Number(r.count),
+  }));
+
+  // 3. Top Appointment Types via SQL GROUP BY
+  const typeQuery = trx('appointments as a')
+    .join('appointment_types as at', 'a.appointment_type_id', 'at.id')
+    .where('a.appointment_date', '>=', from_date)
+    .where('a.appointment_date', '<=', to_date);
+
+  if (department_id) typeQuery.where('a.department_id', department_id);
+  if (doctor_id) typeQuery.where('a.doctor_id', doctor_id);
+
+  const typeRows = await typeQuery
+    .select(
+      'at.id as appointment_type_id',
+      'at.name as name',
+      trx.raw('COUNT(*)::integer as count')
+    )
+    .groupBy('at.id', 'at.name')
+    .orderBy('count', 'desc');
+
+  const top_appointment_types = typeRows.map((r) => ({
+    appointment_type_id: r.appointment_type_id,
+    name: r.name,
+    count: Number(r.count),
+  }));
 
   return {
     from_date,

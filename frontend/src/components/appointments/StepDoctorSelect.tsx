@@ -5,7 +5,7 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { useDepartments } from '@/hooks/useDepartments';
 import { useDoctors } from '@/hooks/useDoctors';
-import { useAppointmentTypes } from '@/hooks/useAppointments';
+import { useAppointmentTypes } from '@/hooks/useAppointmentTypes';
 import type { Doctor, AppointmentType, Department } from '@/types';
 
 interface StepDoctorSelectProps {
@@ -37,7 +37,11 @@ export function StepDoctorSelect({
   });
   const doctors = docResponse?.data || [];
 
-  const { data: appointmentTypes = [], isLoading: isTypesLoading } = useAppointmentTypes();
+  const { data: typeResponse, isLoading: isTypesLoading } = useAppointmentTypes({
+    limit: 100,
+    is_active: true,
+  });
+  const appointmentTypes = typeResponse?.data || [];
 
   const handleDeptChange = (deptId: string) => {
     setDepartmentId(deptId);

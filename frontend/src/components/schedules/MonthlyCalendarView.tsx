@@ -82,7 +82,9 @@ export function MonthlyCalendarView({
       const docSchedules = allSchedules[doc.id] || [];
       const docOverrides = allOverrides[doc.id] || [];
 
-      const override = docOverrides.find((o) => o.override_date === dateStr);
+      const override = docOverrides.find(
+        (o) => o.override_date && o.override_date.slice(0, 10) === dateStr,
+      );
       const schedule = docSchedules.find((s) => s.day_of_week === dayOfWeek);
 
       if (override) {

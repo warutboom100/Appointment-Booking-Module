@@ -59,6 +59,7 @@ export default function AppointmentsPage() {
   const { data, isLoading } = useAppointments({
     page,
     limit,
+    search: debouncedSearch || undefined,
     status: statusFilter === 'all' ? undefined : statusFilter,
     doctor_id: selectedDoctorId || undefined,
     department_id: selectedDepartmentId || undefined,
@@ -133,7 +134,34 @@ export default function AppointmentsPage() {
 
       {/* Filter Toolbar Card */}
       <Card variant="glass" className="p-4 flex flex-col gap-4">
-        {/* Row 1: Search, Date, Doctor, Department */}
+        {/* Search Bar */}
+        <div className="w-full">
+          <Input
+            placeholder="ค้นหาด้วยชื่อผู้ป่วย หรือเลข HN..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
+            leftIcon={
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            }
+          />
+        </div>
+
+        {/* Row: Date, Department, Doctor, Status */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <label className="text-[11px] font-semibold text-[var(--muted)] uppercase tracking-wider block mb-1">
@@ -567,7 +595,11 @@ export default function AppointmentsPage() {
       <ConfirmDialog
         isOpen={!!statusConfirmTarget}
         title={statusConfirmTarget?.actionLabel || 'ยืนยันการเปลี่ยนสถานะ'}
-        message={`ต้องการเปลี่ยนสถานะนัดหมายของ ${statusConfirmTarget?.appointment.patient?.first_name} ${statusConfirmTarget?.appointment.patient?.last_name} เป็น "${statusConfirmTarget?.actionLabel}" หรือไม่?`}
+        message={`ต้องการเปลี่ยนสถานะนัดหมายของ ${
+          statusConfirmTarget?.appointment.patient_name ||
+          `${statusConfirmTarget?.appointment.patient?.first_name || ''} ${statusConfirmTarget?.appointment.patient?.last_name || ''}`.trim() ||
+          'ผู้ป่วย'
+        } (${statusConfirmTarget?.appointment.patient_hn || statusConfirmTarget?.appointment.patient?.hn || '-'}) เป็น "${statusConfirmTarget?.actionLabel}" หรือไม่?`}
         confirmLabel="ยืนยันเปลี่ยนสถานะ"
         variant="primary"
         isLoading={updateStatusMutation.isPending}

@@ -225,7 +225,7 @@ export async function seed(knex: Knex): Promise<void> {
   const doctorMap = Object.fromEntries(doctors.map((d) => [`${d.first_name} ${d.last_name}`, d.id]));
 
   // 5. Patients
-  const patients = await knex('patients')
+  await knex('patients')
     .insert([
       {
         hn: 'HN-000001',
@@ -307,12 +307,12 @@ export async function seed(knex: Knex): Promise<void> {
         created_at: now,
         updated_at: now,
       },
-    ])
-    .returning('*');
+    ]);
 
+  await knex.raw("SELECT setval('patient_hn_seq', 5, true);");
 
   // 6. Appointment Types
-  const apptTypes = await knex('appointment_types')
+  await knex('appointment_types')
     .insert([
       {
         name: 'New Patient Visit',
@@ -350,8 +350,7 @@ export async function seed(knex: Knex): Promise<void> {
         created_at: now,
         updated_at: now,
       },
-    ])
-    .returning('*');
+    ]);
 
 
   // 7. Doctor Schedules (Recurring weekly across all 7 days)

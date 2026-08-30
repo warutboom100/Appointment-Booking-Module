@@ -120,6 +120,7 @@ export interface AppointmentType {
   name: string;
   description?: string | null;
   duration_minutes: number;
+  color?: string | null;
   color_code?: string | null;
   is_active: boolean;
   created_at: string;

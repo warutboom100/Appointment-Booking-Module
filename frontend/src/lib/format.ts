@@ -49,13 +49,22 @@ export function formatDateTime(value: string | Date | undefined | null): string 
  */
 export function calculateAge(dobString: string | undefined | null): number | null {
   if (!dobString) return null;
-  const dob = new Date(dobString);
-  if (isNaN(dob.getTime())) return null;
+  const parts = dobString.slice(0, 10).split('-').map(Number);
+  if (parts.length < 3 || parts.some(isNaN)) {
+    const fallback = new Date(dobString);
+    if (isNaN(fallback.getTime())) return null;
+    const today = new Date();
+    let age = today.getFullYear() - fallback.getFullYear();
+    const m = today.getMonth() - fallback.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < fallback.getDate())) age--;
+    return Math.max(0, age);
+  }
 
+  const [y, m, d] = parts;
   const today = new Date();
-  let age = today.getFullYear() - dob.getFullYear();
-  const m = today.getMonth() - dob.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+  let age = today.getFullYear() - y;
+  const monthDiff = today.getMonth() + 1 - m;
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < d)) {
     age--;
   }
   return Math.max(0, age);
